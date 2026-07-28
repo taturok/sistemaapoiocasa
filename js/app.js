@@ -754,6 +754,66 @@ window.salvarHorariosUsuario = async function() {
   alert('Horários de acesso salvos com sucesso!');
 }
 
-// INICIALIZAÇÃO
-document.getElementById('logoutBtn')?.addEventListener('click', deslogarSistema);
-function renderizarDashboard() {} // Mock para não quebrar chamadas legadas
+// ================================================================
+// INICIALIZAÇÃO E EVENTOS
+// ================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. Constrói as telas novas dinamicamente
+  injetarHTMLDinamico();
+
+  // 2. Liga os botões de Login e Logout
+  document.getElementById('loginBtn')?.addEventListener('click', fazerLogin);
+  document.getElementById('loginSenha')?.addEventListener('keypress', e => { 
+    if (e.key === 'Enter') fazerLogin(); 
+  });
+  document.getElementById('logoutBtn')?.addEventListener('click', deslogarSistema);
+
+  // 3. Liga a navegação das Abas (Tabs)
+  const tabsContainer = document.getElementById('tabsContainer');
+  if (tabsContainer) {
+    tabsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('tab-btn')) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        e.target.classList.add('active');
+        const target = document.getElementById(e.target.dataset.tab);
+        if (target) target.classList.add('active');
+      }
+    });
+  }
+
+  // 4. Verifica se o usuário já estava logado antes de atualizar a página
+  verificarLoginLocal();
+});
+
+// Função para manter o usuário logado
+function verificarLoginLocal() {
+  const email = localStorage.getItem('usuarioLogado');
+  const nivel = localStorage.getItem('nivelUsuario');
+  
+  if (email && nivel) {
+    estado.usuarioAtual = { email: email, nivel: nivel, nome: email.split('@')[0] };
+    estado.online = true;
+    document.getElementById('telaLogin').style.display = 'none';
+    document.querySelector('.app-container').style.display = 'block';
+    document.getElementById('nomeUsuario').textContent = estado.usuarioAtual.nome;
+    document.getElementById('nivelUsuario').textContent = NIVEIS_ACESSO[nivel]?.nome || nivel;
+    
+    mostrarAbasPorNivel(nivel);
+    carregarTodosDados();
+  }
+}
+
+// Recria a Dashboard principal visualmente
+function renderizarDashboard() {
+  const cards = document.getElementById('cardsDashboard');
+  if (!cards) return;
+  const ativos = estado.jovens.filter(j => j.status === 'ativo' || !j.status).length;
+  const suspensos = estado.jovens.filter(j => j.status === 'suspenso').length;
+  cards.innerHTML = `
+    <div class="card"><h4>Total de Jovens</h4><p>${estado.jovens.length}</p></div>
+    <div class="card"><h4>Ativos</h4><p style="color:#10b981;">${ativos}</p></div>
+    <div class="card"><h4>Suspensos</h4><p style="color:#be185d;">${suspensos}</p></div>
+    <div class="card"><h4>Profissionais</h4><p style="color:#3b82f6;">${estado.profissionais.length}</p></div>
+  `;
+}
