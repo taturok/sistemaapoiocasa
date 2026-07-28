@@ -1137,7 +1137,7 @@ window.editarJovem = function(id) {
 // ================================================================
 // LISTA E FILTROS DE FREQUÊNCIA
 // ================================================================
-window.carregarLista = function() {
+function carregarLista() {
   const tbody = document.getElementById('listaCorpo');
   if (!tbody) return;
 
@@ -1205,28 +1205,19 @@ window.carregarLista = function() {
       </td>
     </tr>`;
   }).join('');
+}
 
-  // -----------------------------------------------------------------
-  // NOVA LÓGICA DO CONTADOR DE JOVENS NO FILTRO
-  // -----------------------------------------------------------------
-  let contadorDiv = document.getElementById('contadorJovensFiltro');
-  
-  if (!contadorDiv) {
-    const tabelaWrapper = tbody.closest('.tabela-wrapper');
-    contadorDiv = document.createElement('div');
-    contadorDiv.id = 'contadorJovensFiltro';
-    // Estilização do contador abaixo da tabela
-    contadorDiv.style.cssText = 'margin-top: 12px; font-size: 1.1rem; font-weight: 600; color: #1e2a4a; text-align: right; background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; display: inline-block; float: right;';
-    tabelaWrapper.insertAdjacentElement('afterend', contadorDiv);
-    
-    // Div invisível para evitar que o "float: right" quebre a posição dos elementos abaixo dele
-    const clearDiv = document.createElement('div');
-    clearDiv.style.clear = 'both';
-    contadorDiv.insertAdjacentElement('afterend', clearDiv);
-  }
+function parseNum(val) {
+  if (!val) return 0;
+  const n = parseFloat(String(val).replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
 
-  // Atualiza o número exibido sempre que a tabela for recarregada
-  contadorDiv.innerHTML = `Total: <span style="color:#3b82f6;">${lista.length}</span> jovem(ns)`;
+function calcularSaldo(jovem) {
+  if(jovem['MEDIDA'] === 'LA') return 0; // LA não usa saldo de horas
+  const horasTotal = parseNum(jovem['HORAS']);
+  const horasFeitas = (jovem.historicoFrequencia || []).reduce((s, h) => s + parseNum(h.horas), 0);
+  return Math.max(0, horasTotal - horasFeitas).toFixed(1);
 }
 
 // ================================================================
