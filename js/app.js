@@ -1620,4 +1620,106 @@ document.addEventListener('DOMContentLoaded', () => {
   renderizarCamposFormulario();
 });
 
-function renderizarRelatorios() {} function renderizarAcompanhamento() {} // Mantidas para não quebrar a chamada original das abas
+// ================================================================
+// RELATÓRIOS, OBSERVAÇÕES E ACOMPANHAMENTO INDIVIDUAL
+// ================================================================
+
+window.renderizarRelatorios = function() {
+  const tbody1 = document.querySelector('#tabelaProjecao tbody');
+  if (tbody1) {
+    const agora = new Date();
+    const HORAS_POR_QUINZENA = 8; 
+    let saldos = estado.jovens
+      .filter(j => j['MEDIDA'] && j['MEDIDA'] !== 'Liberação' && j['MEDIDA'] !== 'LA' && j.status !== 'suspenso')
+      .map(j => {
+        const horasTotal = parseNum(j['HORAS']);
+        const horasFeitas = (j.historicoFrequencia || []).reduce((s, h) => s + parseNum(h.horas), 0);
+        return Math.max(0, horasTotal - horasFeitas);
+      });
+    
+    tbody1.innerHTML = '';
+    for (let mes = 0; mes < 3; mes++) {
+      const dataMes = new Date(agora.getFullYear(), agora.getMonth() + mes, 1);
+      const mesNome = dataMes.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      const diasMes = new Date(dataMes.getFullYear(), dataMes.getMonth() + 1, 0).getDate();
+      
+      const ativosQ1 = saldos.filter(s => s > 0).length;
+      const horasQ1 = saldos.reduce((sum, s) => sum + Math.min(s, HORAS_POR_QUINZENA), 0);
+      saldos = saldos.map(s => Math.max(0, s - HORAS_POR_QUINZENA));
+      const q1Inicio = new Date(dataMes.getFullYear(), dataMes.getMonth(), 1);
+      const q1Fim = new Date(dataMes.getFullYear(), dataMes.getMonth(), 15);
+      tbody1.innerHTML += `<tr><td>1ª Quin. ${mesNome}</td><td>${q1Inicio.toLocaleDateString('pt-BR')} - ${q1Fim.toLocaleDateString('pt-BR')}</td><td>${ativosQ1}</td><td>${horasQ1}h</td></tr>`;
+      
+      const ativosQ2 = saldos.filter(s => s > 0).length;
+      const horasQ2 = saldos.reduce((sum, s) => sum + Math.min(s, HORAS_POR_QUINZENA), 0);
+      saldos = saldos.map(s => Math.max(0, s - HORAS_POR_QUINZENA));
+      const q2Inicio = new Date(dataMes.getFullYear(), dataMes.getMonth(), 16);
+      const q2Fim = new Date(dataMes.getFullYear(), dataMes.getMonth(), diasMes);
+      tbody1.innerHTML += `<tr><td>2ª Quin. ${mesNome}</td><td>${q2Inicio.toLocaleDateString('pt-BR')} - ${q2Fim.toLocaleDateString('pt-BR')}</td><td>${ativosQ2}</td><td>${horasQ2}h</td></tr>`;
+    }
+  }
+
+  const tbody2 = document.querySelector('#tabelaAniversariantes tbody');
+  if (tbody2) {
+    const agora = new Date(); const anoAtual = agora.getFullYear(); const mesAtual = agora.getMonth();
+    const aniversariantes = estado.jovens.filter(j => j['MEDIDA'] !== 'Liberação').map(j => {
+      const nascStr = j['NASC.']; if (!nascStr) return null; const nasc = new Date(nascStr); if (isNaN(nasc.getTime())) return null;
+      const mesNasc = nasc.getMonth(); const diaNasc = nasc.getDate() + 1;
+      let mesTarget = mesNasc; let anoTarget = anoAtual; if (mesNasc < mesAtual || (mesNasc === mesAtual && diaNasc < agora.getDate())) anoTarget = anoAtual + 1;
+      const diffMeses = (anoTarget - anoAtual) * 12 + (mesTarget - mesAtual); if (diffMeses < 0 || diffMeses >= 3) return null;
+      return { nome: j['NOME'] || j['REFERENCIA'], nasc, mesNasc, diaNasc, anoTarget, mesTarget, idadeQueFara: anoTarget - nasc.getFullYear(), dataEvento: new Date(anoTarget, mesTarget, diaNasc) };
+    }).filter(Boolean).sort((a, b) => a.dataEvento - b.dataEvento);
+    tbody2.innerHTML = aniversariantes.length > 0 ? aniversariantes.map(a => `<tr><td>${a.nome}</td><td>${a.nasc.toLocaleDateString('pt-BR')}</td><td>${a.diaNasc}/${String(a.mesTarget + 1).padStart(2, '0')}/${a.anoTarget}</td><td>${a.idadeQueFara} anos</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center; color:#6b7280;">Nenhum aniversariante nos próximos 3 meses.</td></tr>';
+  }
+}
+
+window.renderizarAcompanhamento = function() {
+  const agora = new Date(); const tabela7 = document.getElementById('tabela7dias'); const tabela14 = document.getElementById('tabela14dias');
+  const semComparecimento = estado.jovens.filter(j => { if (j['MEDIDA'] === 'Liberação' || j.status === 'suspenso') return false; const hist = j.historicoFrequencia || []; if (hist.length === 0) return true; const ultimo = new Date(Math.max(...hist.map(h => new Date(h.data)))); return Math.floor((agora - ultimo) / (1000 * 60 * 60 * 24)) >= 7; });
+  const sem7 = semComparecimento.filter(j => { const hist = j.historicoFrequencia || []; if (hist.length === 0) return true; return Math.floor((agora - new Date(Math.max(...hist.map(h => new Date(h.data))))) / (1000 * 60 * 60 * 24)) < 14; });
+  const sem14 = semComparecimento.filter(j => { const hist = j.historicoFrequencia || []; if (hist.length === 0) return true; return Math.floor((agora - new Date(Math.max(...hist.map(h => new Date(h.data))))) / (1000 * 60 * 60 * 24)) >= 14; });
+  
+  if (tabela7) tabela7.innerHTML = sem7.map(j => { const hist = j.historicoFrequencia || []; const ultimo = hist.length > 0 ? new Date(Math.max(...hist.map(h => new Date(h.data)))).toLocaleDateString('pt-BR') : 'Nunca'; const dias = hist.length > 0 ? Math.floor((agora - new Date(Math.max(...hist.map(h => new Date(h.data))))) / (1000 * 60 * 60 * 24)) : '?'; return `<tr><td>${j['NOME'] || '-'}</td><td>${ultimo}</td><td>${dias}</td><td><button onclick="abrirFichaModal('${j.id}')" class="btn-acao btn-ficha">📋</button></td></tr>`; }).join('');
+  if (tabela14) tabela14.innerHTML = sem14.map(j => { const hist = j.historicoFrequencia || []; const ultimo = hist.length > 0 ? new Date(Math.max(...hist.map(h => new Date(h.data)))).toLocaleDateString('pt-BR') : 'Nunca'; const dias = hist.length > 0 ? Math.floor((agora - new Date(Math.max(...hist.map(h => new Date(h.data))))) / (1000 * 60 * 60 * 24)) : '?'; return `<tr><td>${j['NOME'] || '-'}</td><td>${ultimo}</td><td>${dias}</td><td><button onclick="abrirFichaModal('${j.id}')" class="btn-acao btn-ficha">📋</button></td></tr>`; }).join('');
+}
+
+window.carregarFichaIndividual = function() {
+  const id = document.getElementById('selectJovemAcomp').value;
+  const container = document.getElementById('fichaIndividual');
+  const btnPrint = document.getElementById('btnImprimirFicha');
+  
+  if (!id) { container.style.display = 'none'; if(btnPrint) btnPrint.style.display = 'none'; return; }
+  const jovem = estado.jovens.find(j => j.id === id); if (!jovem) return;
+  
+  container.style.display = 'block'; if(btnPrint) btnPrint.style.display = 'inline-block';
+  
+  let acoesLAHTML = '';
+  if (jovem['MEDIDA'] === 'LA') {
+    const acoes = jovem.acoesLA || []; const profs = estado.usuarios.filter(u => u.nivel === 'tecnico' || u.nivel === 'gestor');
+    acoesLAHTML = `<h3 style="margin-top:20px; border-bottom:2px solid #e2e8f0; padding-bottom:5px;">Acompanhamento LA</h3><div style="margin-bottom:15px;"><label style="font-weight:bold;">Técnico Responsável:</label><select onchange="vincularProfissionalLA('${jovem.id}', this.value)" style="padding:5px; border-radius:5px;"><option value="">Não atribuído</option>${profs.map(p => `<option value="${p.id}" ${jovem.profissionalLA === p.id ? 'selected' : ''}>${p.nome}</option>`).join('')}</select></div><ul style="list-style:none; padding:0;">${acoes.map(a => `<li style="padding:10px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:5px; display:flex; justify-content:space-between;"><span>${a.texto}</span><button class="btn btn-${a.realizado ? 'success' : 'secondary'}" onclick="toggleAcaoLATab('${jovem.id}', ${a.id})" style="padding:4px 8px; font-size:0.8rem;">${a.realizado ? '✅ Feito' : 'Marcar Feito'}</button></li>`).join('')}</ul>`;
+  }
+
+  const dadosDiv = document.getElementById('fichaDadosPessoais'); if (dadosDiv) dadosDiv.innerHTML = `<div class="ficha-grid">${CAMPOS.map(([key, label]) => `<div class="ficha-campo"><strong>${label}:</strong> ${jovem[key] || '-'}</div>`).join('')}<div class="ficha-campo"><strong>ID Digital:</strong> ${jovem['ID_DIGITAL'] || '-'}</div></div>${acoesLAHTML}`;
+  
+  const freqDiv = document.getElementById('fichaFrequencia'); if (freqDiv) { const hist = jovem.historicoFrequencia || []; const totalHoras = hist.reduce((s, h) => s + parseNum(h.horas), 0); freqDiv.innerHTML = `<p><strong>Total de frequências:</strong> ${hist.length} registros</p><p><strong>Total de horas:</strong> ${totalHoras.toFixed(1)}h</p><p><strong>Saldo restante:</strong> ${calcularSaldo(jovem)}h</p>${hist.length > 0 ? `<table style="margin-top:12px; width:100%;"><thead><tr><th>Tipo</th><th>Data/Hora</th><th>Horas</th><th>Observação</th></tr></thead><tbody>${hist.map(h => `<tr><td>${h.tipo === 'saida' ? '🚪 Saída' : '🚪 Entrada'}</td><td>${new Date(h.data).toLocaleDateString('pt-BR')} ${new Date(h.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</td><td>${h.tipo === 'saida' ? '-' : (parseNum(h.horas) || 0) + 'h'}</td><td>${h.observacao || '-'}</td></tr>`).join('')}</tbody></table>` : '<p style="color:#6b7280;">Nenhum registro de frequência.</p>'}`; }
+  
+  const ofDiv = document.getElementById('fichaOficinas'); if (ofDiv) { const oficinasParticipadas = estado.oficinas.filter(o => (o.jovensIds || []).includes(jovem.id)); ofDiv.innerHTML = oficinasParticipadas.length > 0 ? `<table style="margin-top:12px; width:100%;"><thead><tr><th>Data</th><th>Conteúdo</th><th>Benefício Social</th></tr></thead><tbody>${oficinasParticipadas.map(o => `<tr><td>${new Date(o.data).toLocaleDateString('pt-BR')}</td><td>${o.conteudo}</td><td>${o.reverte ? '✅ Sim' : 'Não'}</td></tr>`).join('')}</tbody></table>` : '<p style="color:#6b7280;">Nenhuma oficina registrada.</p>'; }
+  
+  const docDiv = document.getElementById('fichaDocumentos'); if (docDiv) { const docs = jovem.documentos || []; docDiv.innerHTML = docs.length > 0 ? docs.map((d, i) => `<div class="doc-item"><span>📄 ${d.nome} (${d.tipo})</span><div>${d.base64 ? `<a href="${d.base64}" download="${d.nome}" class="btn-acao btn-edit" style="text-decoration:none;">📥 Baixar</a>` : ''}<button onclick="removerDocumento('${id}', ${i})" class="btn-acao btn-danger">🗑️</button></div></div>`).join('') : '<p style="color:#6b7280;">Nenhum documento anexado.</p>'; }
+  
+  const obsDiv = document.getElementById('fichaObservacoes'); if (obsDiv) { const obs = jovem.observacoes || []; obsDiv.innerHTML = obs.length > 0 ? obs.map(o => `<div class="obs-item"><strong>${o.profissional || 'Sistema'}</strong> - <small>${new Date(o.data).toLocaleDateString('pt-BR')} ${new Date(o.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</small><p>${o.texto}</p></div>`).join('') : '<p style="color:#6b7280;">Nenhuma observação registrada.</p>'; }
+  
+  window._jovemDocAtual = jovem.id;
+}
+
+window.toggleAcaoLATab = async function(jovemId, acaoId) {
+  const jovem = estado.jovens.find(j => j.id === jovemId); const acao = jovem.acoesLA.find(a => a.id === acaoId); acao.realizado = !acao.realizado;
+  await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); carregarFichaIndividual(); carregarLista();
+}
+
+window.salvarObsAcomp = async function() {
+  const jovemId = document.getElementById('selectJovemAcomp').value; const texto = document.getElementById('obsAcompTexto').value.trim();
+  if (!texto) return alert('Digite a observação.'); const jovem = estado.jovens.find(j => j.id === jovemId); if (!jovem) return;
+  jovem.observacoes = jovem.observacoes || []; jovem.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto });
+  try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); document.getElementById('obsAcompTexto').value = ''; carregarFichaIndividual(); alert('Observação salva!'); } catch (err) { alert('Erro: ' + err.message); }
+}
