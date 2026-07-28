@@ -44,8 +44,7 @@ const CAMPOS = [
   ['REFERENCIA','REFERÊNCIA','text'],['NOME','NOME','text'],['NOME DO RESPONSÁVEL','RESPONSÁVEL','text'],
   ['REINCIDÊNCIA','REINCIDÊNCIA','text'],
   ['MEDIDA','MEDIDA','select', [['','Selecione...'],['LA','LA - Liberdade Assistida'],['PSC','PSC - Prestação de Serviço'],['Internação','Internação'],['Liberação','Liberação']]],
-  ['MESES','MESES','text'],
-  ['HORAS','HORAS','number'],['PROTETIVA','PROTETIVA','text'],['NASC.','NASCIMENTO','date'],
+  ['MESES','MESES','text'],['HORAS','HORAS','number'],['PROTETIVA','PROTETIVA','text'],['NASC.','NASCIMENTO','date'],
   ['MÊS ANIVERSARIO','MÊS ANIVER.','text'],['NATURALIDADE','NATURALIDADE','text'],
   ['IDADE','IDADE','number'],['GÊNERO','GÊNERO','select',[['','Selecione...'],['M','Masculino'],['F','Feminino'],['NB','Não-binário']]],
   ['COR','COR','select',[['','Selecione...'],['Branca','Branca'],['Preta','Preta'],['Parda','Parda'],
@@ -636,6 +635,11 @@ function mostrarAbasPorNivel(nivel) {
       const target = document.getElementById(newBtn.dataset.tab);
       if (target) target.classList.add('active');
       
+      if (newBtn.dataset.tab === 'tab2') {
+        carregarLista();
+        // Garantir que o contador seja criado
+        setTimeout(() => atualizarContadorLista(estado.jovens.length), 100);
+      }
       if (newBtn.dataset.tab === 'tab3') renderizarRelatorios();
       if (newBtn.dataset.tab === 'tab5') renderizarAcompanhamento();
       if (newBtn.dataset.tab === 'tabAcompInd') popularSelectAcompInd();
@@ -1135,76 +1139,122 @@ window.editarJovem = function(id) {
 }
 
 // ================================================================
-// LISTA E FILTROS DE FREQUÊNCIA
+// LISTA E FILTROS DE FREQUÊNCIA (COM CONTADOR)
 // ================================================================
 function carregarLista() {
-  const tbody = document.getElementById('listaCorpo');
-  if (!tbody) return;
+    const tbody = document.getElementById('listaCorpo');
+    if (!tbody) return;
 
-  const fNome = (document.getElementById('filtroNome')?.value || '').toLowerCase();
-  const fMedida = document.getElementById('filtroMedida')?.value;
-  const fStatus = document.getElementById('filtroStatus')?.value;
-  const fSaldo = document.getElementById('filtroSaldo')?.value;
+    const fNome = (document.getElementById('filtroNome')?.value || '').toLowerCase();
+    const fMedida = document.getElementById('filtroMedida')?.value;
+    const fStatus = document.getElementById('filtroStatus')?.value;
+    const fSaldo = document.getElementById('filtroSaldo')?.value;
 
-  let lista = estado.jovens.filter(j => {
-    // Definir Status Renderizado
-    if (j.status === 'suspenso') j._statusRender = 'suspenso';
-    else if (j['MEDIDA'] === 'Liberação') j._statusRender = 'liberado';
-    else {
-      j._statusRender = parseFloat(calcularSaldo(j)) <= 0 && j['MEDIDA'] !== 'LA' ? 'concluído' : 'ativo';
-    }
-
-    // Aplicar Filtros
-    if (fNome && !(j['NOME']||'').toLowerCase().includes(fNome) && !(j['ID_DIGITAL']||'').includes(fNome)) return false;
-    if (fMedida && j['MEDIDA'] !== fMedida) return false;
-    if (fStatus && j._statusRender !== fStatus) return false;
-    if (fSaldo === 'critico' && parseFloat(calcularSaldo(j)) <= 0 && j['MEDIDA'] !== 'LA') return false;
-    
-    return true;
-  }).sort((a, b) => (a['NOME'] || '').localeCompare((b['NOME'] || ''), 'pt-BR'));
-
-  tbody.innerHTML = lista.map(j => {
-    const hist = j.historicoFrequencia || [];
-    const ultimo = hist.length > 0 ? new Date(Math.max(...hist.map(h => new Date(h.data)))).toLocaleDateString('pt-BR') : 'Nunca';
-    
-    let bgStatus = j._statusRender === 'suspenso' ? 'background:#fce7f3; color:#be185d;' : (j._statusRender === 'ativo' ? 'background:#d1fae5; color:#065f46;' : 'background:#e5e7eb; color:#374151;');
-    const renderSaldo = j['MEDIDA'] === 'LA' ? `Ações: ${j.acoesLA?.filter(a=>a.realizado).length || 0}/${j.acoesLA?.length || 0}` : `${calcularSaldo(j)}h`;
-
-    const hoje = new Date();
-    const hojeStr = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).getTime();
-    let temEntradaAberta = false;
-    let podeRegistrarPonto = j['MEDIDA'] !== 'Liberação' && j._statusRender !== 'suspenso' && (parseFloat(calcularSaldo(j)) > 0 || j['MEDIDA'] === 'LA');
-
-    if (podeRegistrarPonto && j['MEDIDA'] !== 'LA') {
-      for (let i = hist.length - 1; i >= 0; i--) {
-        if (hist[i].tipo === 'entrada') {
-          const eDia = new Date(new Date(hist[i].data).getFullYear(), new Date(hist[i].data).getMonth(), new Date(hist[i].data).getDate()).getTime();
-          if (eDia === hojeStr) { temEntradaAberta = true; break; }
+    let lista = estado.jovens.filter(j => {
+        // Definir Status Renderizado
+        if (j.status === 'suspenso') j._statusRender = 'suspenso';
+        else if (j['MEDIDA'] === 'Liberação') j._statusRender = 'liberado';
+        else {
+            j._statusRender = parseFloat(calcularSaldo(j)) <= 0 && j['MEDIDA'] !== 'LA' ? 'concluído' : 'ativo';
         }
-        if (hist[i].tipo === 'saida') {
-          const sDia = new Date(new Date(hist[i].data).getFullYear(), new Date(hist[i].data).getMonth(), new Date(hist[i].data).getDate()).getTime();
-          if (sDia === hojeStr) break;
-        }
-      }
-    }
 
-    return `<tr>
-      <td>${j['NOME'] || j['REFERENCIA'] || '-'}</td>
-      <td>${j['ID_DIGITAL'] || '-'}</td>
-      <td>${j['IDADE'] || '-'}</td>
-      <td>${j['MEDIDA'] || '-'}</td>
-      <td>${renderSaldo}</td>
-      <td><span style="font-weight:600; padding:4px 12px; border-radius:20px; ${bgStatus}">${j._statusRender.toUpperCase()}</span></td>
-      <td>${ultimo}</td>
-      <td>
-        ${podeRegistrarPonto && j['MEDIDA'] !== 'LA' ? `<button onclick="registrarPontoNaLinha('${j.id}')" class="btn-acao ${temEntradaAberta ? 'btn-ponto-saida' : 'btn-ponto-entrada'}">${temEntradaAberta ? '🚪 Saída' : '🚪 Entrada'}</button>` : ''}
-        <button onclick="editarJovem('${j.id}')" class="btn-acao btn-edit">✏️</button>
-        <button onclick="abrirFichaModal('${j.id}')" class="btn-acao btn-ficha">📋 Ficha</button>
-        ${['gestor','tecnico'].includes(estado.usuarioAtual?.nivel) && j._statusRender !== 'suspenso' ? `<button onclick="abrirModalSuspensao('${j.id}', '${j['NOME']}')" class="btn-acao" style="background:#be185d; color:white;">🔴 Suspender</button>` : ''}
-        <button onclick="abrirModalExclusao('jovem', '${j.id}', '${j['NOME']}')" class="btn-acao btn-danger">🗑️</button>
-      </td>
-    </tr>`;
-  }).join('');
+        // Aplicar Filtros
+        if (fNome && !(j['NOME']||'').toLowerCase().includes(fNome) && !(j['ID_DIGITAL']||'').includes(fNome)) return false;
+        if (fMedida && j['MEDIDA'] !== fMedida) return false;
+        if (fStatus && j._statusRender !== fStatus) return false;
+        if (fSaldo === 'critico' && parseFloat(calcularSaldo(j)) <= 0 && j['MEDIDA'] !== 'LA') return false;
+        
+        return true;
+    }).sort((a, b) => (a['NOME'] || '').localeCompare((b['NOME'] || ''), 'pt-BR'));
+
+    // ATUALIZAR CONTADOR COM O TOTAL DE JOVENS FILTRADOS
+    atualizarContadorLista(lista.length);
+
+    tbody.innerHTML = lista.map(j => {
+        const hist = j.historicoFrequencia || [];
+        const ultimo = hist.length > 0 ? new Date(Math.max(...hist.map(h => new Date(h.data)))).toLocaleDateString('pt-BR') : 'Nunca';
+        
+        let bgStatus = j._statusRender === 'suspenso' ? 'background:#fce7f3; color:#be185d;' : (j._statusRender === 'ativo' ? 'background:#d1fae5; color:#065f46;' : 'background:#e5e7eb; color:#374151;');
+        const renderSaldo = j['MEDIDA'] === 'LA' ? `Ações: ${j.acoesLA?.filter(a=>a.realizado).length || 0}/${j.acoesLA?.length || 0}` : `${calcularSaldo(j)}h`;
+
+        const hoje = new Date();
+        const hojeStr = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).getTime();
+        let temEntradaAberta = false;
+        let podeRegistrarPonto = j['MEDIDA'] !== 'Liberação' && j._statusRender !== 'suspenso' && (parseFloat(calcularSaldo(j)) > 0 || j['MEDIDA'] === 'LA');
+
+        if (podeRegistrarPonto && j['MEDIDA'] !== 'LA') {
+            for (let i = hist.length - 1; i >= 0; i--) {
+                if (hist[i].tipo === 'entrada') {
+                    const eDia = new Date(new Date(hist[i].data).getFullYear(), new Date(hist[i].data).getMonth(), new Date(hist[i].data).getDate()).getTime();
+                    if (eDia === hojeStr) { temEntradaAberta = true; break; }
+                }
+                if (hist[i].tipo === 'saida') {
+                    const sDia = new Date(new Date(hist[i].data).getFullYear(), new Date(hist[i].data).getMonth(), new Date(hist[i].data).getDate()).getTime();
+                    if (sDia === hojeStr) break;
+                }
+            }
+        }
+
+        return `<tr>
+            <td>${j['NOME'] || j['REFERENCIA'] || '-'}</td>
+            <td>${j['ID_DIGITAL'] || '-'}</td>
+            <td>${j['IDADE'] || '-'}</td>
+            <td>${j['MEDIDA'] || '-'}</td>
+            <td>${renderSaldo}</td>
+            <td><span style="font-weight:600; padding:4px 12px; border-radius:20px; ${bgStatus}">${j._statusRender.toUpperCase()}</span></td>
+            <td>${ultimo}</td>
+            <td>
+                ${podeRegistrarPonto && j['MEDIDA'] !== 'LA' ? `<button onclick="registrarPontoNaLinha('${j.id}')" class="btn-acao ${temEntradaAberta ? 'btn-ponto-saida' : 'btn-ponto-entrada'}">${temEntradaAberta ? '🚪 Saída' : '🚪 Entrada'}</button>` : ''}
+                <button onclick="editarJovem('${j.id}')" class="btn-acao btn-edit">✏️</button>
+                <button onclick="abrirFichaModal('${j.id}')" class="btn-acao btn-ficha">📋 Ficha</button>
+                ${['gestor','tecnico'].includes(estado.usuarioAtual?.nivel) && j._statusRender !== 'suspenso' ? `<button onclick="abrirModalSuspensao('${j.id}', '${j['NOME']}')" class="btn-acao" style="background:#be185d; color:white;">🔴 Suspender</button>` : ''}
+                <button onclick="abrirModalExclusao('jovem', '${j.id}', '${j['NOME']}')" class="btn-acao btn-danger">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ================================================================
+// CONTADOR DE JOVENS NA LISTA DE FREQUÊNCIA
+// ================================================================
+function atualizarContadorLista(total) {
+    // Verifica se o contador já existe, se não, cria
+    let contador = document.getElementById('contadorListaJovens');
+    if (!contador) {
+        const tabelaWrapper = document.querySelector('#tab2 .tabela-wrapper');
+        if (tabelaWrapper) {
+            contador = document.createElement('div');
+            contador.id = 'contadorListaJovens';
+            contador.style.cssText = 'padding: 10px 15px; font-weight: 600; color: #1e2a4a; background: #f1f5f9; border-radius: 0 0 12px 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;';
+            tabelaWrapper.appendChild(contador);
+        }
+    }
+    
+    if (contador) {
+        const filtrosAtivos = [];
+        const filtroNome = document.getElementById('filtroNome')?.value?.trim() || '';
+        const filtroMedida = document.getElementById('filtroMedida')?.value || '';
+        const filtroStatus = document.getElementById('filtroStatus')?.value || '';
+        const filtroSaldo = document.getElementById('filtroSaldo')?.value || '';
+        
+        if (filtroNome) filtrosAtivos.push(`Nome: "${filtroNome}"`);
+        if (filtroMedida) filtrosAtivos.push(`Medida: ${filtroMedida}`);
+        if (filtroStatus) filtrosAtivos.push(`Status: ${filtroStatus}`);
+        if (filtroSaldo === 'critico') filtrosAtivos.push('Saldo: Crítico (>0h)');
+        
+        let textoFiltros = '';
+        if (filtrosAtivos.length > 0) {
+            textoFiltros = ` <span style="font-weight: 400; color: #6b7280; font-size: 0.85rem;">| Filtros: ${filtrosAtivos.join(', ')}</span>`;
+        }
+        
+        contador.innerHTML = `
+            <span>👥 Total de jovens: <strong style="color: #2c3e66; font-size: 1.1rem;">${total}</strong></span>
+            <span style="font-size: 0.85rem; color: #6b7280;">
+                ${total === 1 ? '1 jovem exibido' : `${total} jovens exibidos`}
+                ${textoFiltros}
+            </span>
+        `;
+    }
 }
 
 function parseNum(val) {
@@ -1615,6 +1665,21 @@ document.addEventListener('DOMContentLoaded', () => {
   
   document.getElementById('btnAlterarLogo')?.addEventListener('click', function() { document.getElementById('modalAlterarLogo').style.display = 'flex'; });
   document.getElementById('btnAlterarSenha')?.addEventListener('click', function() { document.getElementById('modalAlterarSenha').style.display = 'flex'; });
+
+  // Configurar atualização automática do contador quando os filtros mudarem
+  document.getElementById('filtroNome')?.addEventListener('input', carregarLista);
+  document.getElementById('filtroMedida')?.addEventListener('change', carregarLista);
+  document.getElementById('filtroStatus')?.addEventListener('change', carregarLista);
+  document.getElementById('filtroSaldo')?.addEventListener('change', carregarLista);
+
+  // Também atualizar quando a busca da frequência for usada
+  document.getElementById('buscaFrequencia')?.addEventListener('input', function() {
+      const filtroNome = document.getElementById('filtroNome');
+      if (filtroNome) {
+          filtroNome.value = this.value;
+          carregarLista();
+      }
+  });
 
   verificarLoginLocal();
   renderizarCamposFormulario();
