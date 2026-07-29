@@ -1662,7 +1662,7 @@ function renderizarPlanejamentos() {
 }
 
 // ================================================================
-// CORREÇÃO: IMPRIMIR FICHA INDIVIDUAL
+// CORREÇÃO: IMPRIMIR FICHA INDIVIDUAL (VERSÃO MELHORADA)
 // ================================================================
 window.imprimirFichaIndividual = function() {
     const id = document.getElementById('selectJovemAcomp').value;
@@ -1684,6 +1684,13 @@ window.imprimirFichaIndividual = function() {
         return;
     }
     
+    // Buscar o logo (se existir)
+    const logoImg = document.getElementById('logoImg');
+    let logoBase64 = '';
+    if (logoImg && logoImg.src && logoImg.src.startsWith('data:image')) {
+        logoBase64 = logoImg.src;
+    }
+    
     // Gerar HTML da ficha para impressão
     let html = `
     <!DOCTYPE html>
@@ -1691,157 +1698,479 @@ window.imprimirFichaIndividual = function() {
     <head>
         <title>Ficha Individual - ${jovem['NOME'] || 'Jovem'}</title>
         <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
-            body { padding: 40px; background: white; }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2c3e66; padding-bottom: 15px; }
-            .header h1 { color: #2c3e66; font-size: 24px; }
-            .header p { color: #6b7280; font-size: 14px; }
-            .section { margin-bottom: 25px; }
-            .section h2 { color: #2c3e66; font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
-            .field { padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
-            .field strong { color: #1e2a4a; font-size: 12px; text-transform: uppercase; display: block; }
-            .field span { font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-            th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e9edf2; }
-            th { background: #f1f5f9; font-weight: 600; }
-            .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-            .badge-success { background: #d1fae5; color: #065f46; }
-            .badge-warning { background: #fef3c7; color: #92400e; }
-            .badge-danger { background: #fee2e2; color: #991b1b; }
-            .footer { margin-top: 30px; text-align: center; color: #94a3b8; font-size: 11px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
-            @media print { body { padding: 20px; } .no-print { display: none; } }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Segoe UI', Arial, sans-serif; 
+                padding: 40px; 
+                background: #f0f4f8;
+                color: #1e293b;
+            }
+            .ficha-container {
+                max-width: 900px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+                padding: 40px;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+                padding-bottom: 20px;
+                border-bottom: 3px solid #2c3e66;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 20px;
+                flex-wrap: wrap;
+            }
+            .header-logo {
+                max-height: 80px;
+                max-width: 150px;
+                object-fit: contain;
+            }
+            .header-text h1 {
+                color: #2c3e66;
+                font-size: 22px;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+            }
+            .header-text p {
+                color: #6b7280;
+                font-size: 13px;
+                margin-top: 4px;
+            }
+            .header-text .data-impressao {
+                font-size: 11px;
+                color: #94a3b8;
+                margin-top: 6px;
+            }
+            .section {
+                margin-bottom: 28px;
+                background: #fafcff;
+                border-radius: 12px;
+                padding: 20px;
+                border: 1px solid #e9edf2;
+            }
+            .section-title {
+                color: #2c3e66;
+                font-size: 16px;
+                font-weight: 700;
+                border-bottom: 2px solid #e2e8f0;
+                padding-bottom: 10px;
+                margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .grid-2col {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px 24px;
+            }
+            .field {
+                padding: 6px 0;
+                border-bottom: 1px solid #f1f5f9;
+            }
+            .field-label {
+                font-size: 11px;
+                text-transform: uppercase;
+                color: #6b7280;
+                font-weight: 600;
+                letter-spacing: 0.3px;
+                display: block;
+            }
+            .field-value {
+                font-size: 14px;
+                color: #1e293b;
+                font-weight: 500;
+                margin-top: 1px;
+            }
+            .badge-status {
+                display: inline-block;
+                padding: 4px 14px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            .badge-ativo { background: #d1fae5; color: #065f46; }
+            .badge-suspenso { background: #fce7f3; color: #be185d; }
+            .badge-concluído { background: #e5e7eb; color: #374151; }
+            .badge-liberado { background: #dbeafe; color: #1e40af; }
+            
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+            thead th {
+                background: #f1f5f9;
+                color: #1e293b;
+                font-weight: 600;
+                padding: 10px 12px;
+                text-align: left;
+                border-bottom: 2px solid #e2e8f0;
+            }
+            tbody td {
+                padding: 8px 12px;
+                border-bottom: 1px solid #f1f5f9;
+            }
+            tbody tr:hover {
+                background: #f8fafc;
+            }
+            .acao-item {
+                padding: 8px 12px;
+                border-radius: 6px;
+                margin-bottom: 6px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .acao-concluida {
+                background: #d1fae5;
+                border-left: 4px solid #10b981;
+            }
+            .acao-pendente {
+                background: #fffbeb;
+                border-left: 4px solid #f59e0b;
+            }
+            .acao-texto {
+                font-size: 14px;
+            }
+            .acao-status {
+                font-size: 12px;
+                font-weight: 600;
+            }
+            .acao-status.concluida { color: #065f46; }
+            .acao-status.pendente { color: #92400e; }
+            
+            .obs-item {
+                background: #f8fafc;
+                padding: 10px 14px;
+                border-left: 3px solid #8b5cf6;
+                margin-bottom: 8px;
+                border-radius: 4px;
+            }
+            .obs-profissional {
+                font-weight: 600;
+                font-size: 13px;
+                color: #1e293b;
+            }
+            .obs-data {
+                font-size: 11px;
+                color: #94a3b8;
+                margin-left: 8px;
+            }
+            .obs-texto {
+                margin-top: 4px;
+                color: #475569;
+                font-size: 13px;
+            }
+            .doc-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 12px;
+                background: white;
+                border-radius: 6px;
+                border: 1px solid #e2e8f0;
+                margin-bottom: 6px;
+            }
+            .doc-nome {
+                font-weight: 500;
+                font-size: 13px;
+            }
+            .doc-tipo {
+                font-size: 11px;
+                color: #6b7280;
+                background: #f1f5f9;
+                padding: 2px 10px;
+                border-radius: 12px;
+            }
+            .footer {
+                margin-top: 30px;
+                text-align: center;
+                padding-top: 20px;
+                border-top: 1px solid #e2e8f0;
+                color: #94a3b8;
+                font-size: 11px;
+            }
+            .footer p {
+                margin: 2px 0;
+            }
+            .no-print {
+                text-align: center;
+                margin-top: 20px;
+                padding: 15px;
+                background: #f1f5f9;
+                border-radius: 8px;
+            }
+            .btn-print {
+                padding: 10px 30px;
+                background: #2c3e66;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 14px;
+                transition: background 0.2s;
+            }
+            .btn-print:hover {
+                background: #1e2a4a;
+            }
+            .btn-close {
+                padding: 10px 30px;
+                background: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 14px;
+                margin-left: 10px;
+                transition: background 0.2s;
+            }
+            .btn-close:hover {
+                background: #5a6268;
+            }
+            @media print {
+                body { background: white; padding: 20px; }
+                .ficha-container { box-shadow: none; padding: 20px; border: 1px solid #ddd; }
+                .no-print { display: none !important; }
+                .section { background: white; border-color: #ddd; }
+                tbody tr:hover { background: transparent; }
+            }
+            @media (max-width: 600px) {
+                .grid-2col { grid-template-columns: 1fr; }
+                .header { flex-direction: column; gap: 10px; }
+            }
         </style>
     </head>
     <body>
-        <div class="header">
-            <h1>📋 Ficha Individual de Acompanhamento</h1>
-            <p>Medidas Socioeducativas - Sistema de Controle</p>
-            <p style="font-size: 12px; color: #6b7280;">Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-        </div>
+        <div class="ficha-container">
+            <div class="header">
+                ${logoBase64 ? `<img src="${logoBase64}" alt="Logo" class="header-logo">` : ''}
+                <div class="header-text">
+                    <h1>📋 Ficha Individual de Acompanhamento</h1>
+                    <p>Sistema de Controle de Medidas Socioeducativas</p>
+                    <p class="data-impressao">Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                </div>
+            </div>
     `;
     
-    // Dados Pessoais
+    // === DADOS PESSOAIS ===
+    const statusClass = jovem.status === 'suspenso' ? 'badge-suspenso' : 
+                        jovem.status === 'ativo' ? 'badge-ativo' : 
+                        jovem['MEDIDA'] === 'Liberação' ? 'badge-liberado' : 'badge-concluído';
+    const statusLabel = jovem.status === 'suspenso' ? 'SUSPENSO' : 
+                        jovem.status === 'ativo' ? 'ATIVO' : 
+                        jovem['MEDIDA'] === 'Liberação' ? 'LIBERADO' : 'CONCLUÍDO';
+    
     html += `
         <div class="section">
-            <h2>Dados Pessoais</h2>
-            <div class="grid">
+            <div class="section-title">👤 Dados Pessoais</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <span style="font-size: 18px; font-weight: 700; color: #2c3e66;">${jovem['NOME'] || 'Sem nome'}</span>
+                <span class="badge-status ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="grid-2col">
     `;
     
     CAMPOS.forEach(([key, label]) => {
+        if (key === 'NOME') return; // Nome já exibido no cabeçalho
         const valor = jovem[key] || '-';
-        html += `<div class="field"><strong>${label}:</strong><span>${valor}</span></div>`;
+        html += `
+            <div class="field">
+                <span class="field-label">${label}</span>
+                <span class="field-value">${valor}</span>
+            </div>
+        `;
     });
     
     html += `
-                <div class="field"><strong>ID Digital:</strong><span>${jovem['ID_DIGITAL'] || '-'}</span></div>
+                <div class="field">
+                    <span class="field-label">ID Digital</span>
+                    <span class="field-value">${jovem['ID_DIGITAL'] || '-'}</span>
+                </div>
             </div>
         </div>
     `;
     
-    // Ações LA (se for LA)
+    // === AÇÕES LA (se for LA) ===
     if (jovem['MEDIDA'] === 'LA') {
         const acoes = jovem.acoesLA || [];
         const concluidas = acoes.filter(a => a.realizado).length;
+        const progresso = acoes.length > 0 ? Math.round((concluidas / acoes.length) * 100) : 0;
+        
         html += `
             <div class="section">
-                <h2>Liberdade Assistida - Ações/Compromissos</h2>
-                <p style="margin-bottom: 10px; color: #6b7280;">Progresso: ${concluidas}/${acoes.length} ações concluídas</p>
-                <ul style="list-style: none; padding: 0;">
+                <div class="section-title">⚖️ Liberdade Assistida - Ações/Compromissos</div>
+                <div style="display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap;">
+                    <span><strong>Progresso:</strong> ${concluidas}/${acoes.length} ações concluídas (${progresso}%)</span>
+                    ${jovem.profissionalLA ? `<span><strong>Técnico Responsável:</strong> ${estado.usuarios.find(u => u.id === jovem.profissionalLA)?.nome || 'Não encontrado'}</span>` : ''}
+                </div>
+                <div style="margin-top: 8px;">
         `;
-        acoes.forEach(a => {
-            html += `<li style="padding: 8px; background: ${a.realizado ? '#d1fae5' : '#f8fafc'}; border: 1px solid ${a.realizado ? '#10b981' : '#e2e8f0'}; margin-bottom: 5px; border-radius: 4px;">
-                <span style="${a.realizado ? 'text-decoration: line-through; color: #065f46;' : ''}">${a.texto}</span>
-                <span style="float: right; font-size: 12px; color: ${a.realizado ? '#065f46' : '#92400e'};">${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}</span>
-            </li>`;
-        });
-        html += `</ul></div>`;
+        
+        if (acoes.length > 0) {
+            acoes.forEach(a => {
+                html += `
+                    <div class="acao-item ${a.realizado ? 'acao-concluida' : 'acao-pendente'}">
+                        <span class="acao-texto ${a.realizado ? 'text-decoration: line-through; color: #065f46;' : ''}">${a.texto}</span>
+                        <span class="acao-status ${a.realizado ? 'concluida' : 'pendente'}">${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}</span>
+                    </div>
+                `;
+            });
+        } else {
+            html += `<p style="color: #6b7280;">Nenhuma ação cadastrada.</p>`;
+        }
+        
+        html += `</div></div>`;
     }
     
-    // Frequência
+    // === FREQUÊNCIA ===
     const hist = jovem.historicoFrequencia || [];
     const totalHoras = hist.reduce((s, h) => s + parseFloat(h.horas || 0), 0);
     const saldo = jovem['MEDIDA'] === 'LA' ? 'N/A' : calcularSaldo(jovem) + 'h';
     
     html += `
         <div class="section">
-            <h2>📊 Frequência</h2>
-            <div style="display: flex; gap: 20px; margin-bottom: 10px; flex-wrap: wrap;">
+            <div class="section-title">📊 Frequência</div>
+            <div style="display: flex; gap: 24px; margin-bottom: 12px; flex-wrap: wrap;">
                 <span><strong>Total de registros:</strong> ${hist.length}</span>
                 <span><strong>Total de horas:</strong> ${totalHoras.toFixed(1)}h</span>
                 <span><strong>Saldo restante:</strong> ${saldo}</span>
+                <span><strong>Medida:</strong> ${jovem['MEDIDA'] || '-'}</span>
             </div>
     `;
     
     if (hist.length > 0) {
         html += `
             <table>
-                <thead><tr><th>Tipo</th><th>Data/Hora</th><th>Horas</th><th>Observação</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Data/Hora</th>
+                        <th>Horas</th>
+                        <th>Observação</th>
+                    </tr>
+                </thead>
                 <tbody>
         `;
+        
         hist.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(h => {
             const tipo = h.tipo === 'saida' ? '🚪 Saída' : '🚪 Entrada';
             const horas = h.tipo === 'saida' ? '-' : (parseFloat(h.horas || 0).toFixed(1) + 'h');
             const data = new Date(h.data).toLocaleDateString('pt-BR') + ' ' + new Date(h.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
             html += `<tr><td>${tipo}</td><td>${data}</td><td>${horas}</td><td>${h.observacao || '-'}</td></tr>`;
         });
+        
         html += `</tbody></table>`;
     } else {
-        html += `<p style="color: #6b7280;">Nenhum registro de frequência.</p>`;
+        html += `<p style="color: #6b7280;">Nenhum registro de frequência encontrado.</p>`;
     }
+    
     html += `</div>`;
     
-    // Oficinas
+    // === OFICINAS ===
     const oficinasParticipadas = estado.oficinas.filter(o => (o.jovensIds || []).includes(jovem.id));
+    
     html += `
         <div class="section">
-            <h2>🛠️ Oficinas Participadas</h2>
+            <div class="section-title">🛠️ Oficinas Participadas</div>
     `;
+    
     if (oficinasParticipadas.length > 0) {
         html += `
             <table>
-                <thead><tr><th>Data</th><th>Conteúdo</th><th>Benefício Social</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Período</th>
+                        <th>Conteúdo</th>
+                        <th>Benefício Social</th>
+                    </tr>
+                </thead>
                 <tbody>
         `;
-        oficinasParticipadas.forEach(o => {
-            html += `<tr><td>${new Date(o.data).toLocaleDateString('pt-BR')}</td><td>${o.conteudo}</td><td>${o.reverte ? '✅ Sim' : 'Não'}</td></tr>`;
+        
+        oficinasParticipadas.sort((a, b) => new Date(b.data) - new Date(a.data)).forEach(o => {
+            html += `
+                <tr>
+                    <td>${new Date(o.data).toLocaleDateString('pt-BR')}</td>
+                    <td>${o.periodo || '-'}</td>
+                    <td>${o.conteudo}</td>
+                    <td>${o.reverte ? '✅ Sim' : 'Não'}</td>
+                </tr>
+            `;
         });
+        
         html += `</tbody></table>`;
     } else {
         html += `<p style="color: #6b7280;">Nenhuma oficina registrada.</p>`;
     }
+    
     html += `</div>`;
     
-    // Observações
-    const obs = jovem.observacoes || [];
+    // === DOCUMENTOS ===
+    const docs = jovem.documentos || [];
+    
     html += `
         <div class="section">
-            <h2>📝 Observações</h2>
+            <div class="section-title">📁 Documentos Anexados</div>
     `;
+    
+    if (docs.length > 0) {
+        docs.forEach(d => {
+            html += `
+                <div class="doc-item">
+                    <span class="doc-nome">📄 ${d.nome}</span>
+                    <span class="doc-tipo">${d.tipo || 'Documento'}</span>
+                </div>
+            `;
+        });
+    } else {
+        html += `<p style="color: #6b7280;">Nenhum documento anexado.</p>`;
+    }
+    
+    html += `</div>`;
+    
+    // === OBSERVAÇÕES ===
+    const obs = jovem.observacoes || [];
+    
+    html += `
+        <div class="section">
+            <div class="section-title">📝 Observações</div>
+    `;
+    
     if (obs.length > 0) {
         obs.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(o => {
             html += `
-                <div style="background: #f8fafc; padding: 10px; border-left: 3px solid #8b5cf6; margin-bottom: 8px;">
-                    <strong>${o.profissional || 'Sistema'}</strong>
-                    <span style="color: #6b7280; font-size: 12px;"> - ${new Date(o.data).toLocaleDateString('pt-BR')} ${new Date(o.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</span>
-                    <p style="margin-top: 4px; color: #475569;">${o.texto}</p>
+                <div class="obs-item">
+                    <span class="obs-profissional">${o.profissional || 'Sistema'}</span>
+                    <span class="obs-data">${new Date(o.data).toLocaleDateString('pt-BR')} ${new Date(o.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</span>
+                    <div class="obs-texto">${o.texto}</div>
                 </div>
             `;
         });
     } else {
         html += `<p style="color: #6b7280;">Nenhuma observação registrada.</p>`;
     }
+    
     html += `</div>`;
     
-    // Footer
+    // === FOOTER ===
     html += `
-        <div class="footer">
-            <p>Documento gerado pelo Sistema de Controle de Medidas Socioeducativas</p>
-            <p>Este documento é de uso interno e deve ser tratado com confidencialidade</p>
-        </div>
-        <div class="no-print" style="text-align: center; margin-top: 20px; padding: 15px; background: #f1f5f9; border-radius: 8px;">
-            <button onclick="window.print()" style="padding: 10px 30px; background: #2c3e66; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🖨️ Imprimir</button>
-            <button onclick="window.close()" style="padding: 10px 30px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-left: 10px;">Fechar</button>
+            <div class="footer">
+                <p>Documento gerado pelo Sistema de Controle de Medidas Socioeducativas</p>
+                <p>Este documento é de uso interno e deve ser tratado com confidencialidade</p>
+                <p style="margin-top: 4px; font-size: 10px;">${new Date().toLocaleString('pt-BR')}</p>
+            </div>
+            
+            <div class="no-print">
+                <button onclick="window.print()" class="btn-print">🖨️ Imprimir</button>
+                <button onclick="window.close()" class="btn-close">Fechar</button>
+            </div>
         </div>
     </body>
     </html>
@@ -1850,7 +2179,6 @@ window.imprimirFichaIndividual = function() {
     win.document.write(html);
     win.document.close();
 };
-
 // ================================================================
 // REMOVER DOCUMENTO
 // ================================================================
