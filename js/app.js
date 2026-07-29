@@ -96,47 +96,32 @@ function fileToBase64(file) {
 }
 
 // ================================================================
-// LOGIN, HORÁRIOS E SENHA (CORRIGIDO)
+// LOGIN, HORÁRIOS E SENHA
 // ================================================================
 let intervaloCronometro = null;
 let pollingInterval = null;
 
 // ================================================================
-// VALIDAR HORÁRIO DE ACESSO (DEFINIDA COMO FUNÇÃO GLOBAL)
+// VALIDAR HORÁRIO DE ACESSO
 // ================================================================
 function validarHorarioAcesso(user) {
-    // Desenvolvedor NÃO tem limitação de horário
     if (user.nivel === 'desenvolvedor' || user.nivel === 'admin') {
         return true;
     }
-    
-    // Se não tiver horários configurados, permite acesso
     if (!user.horariosConfigurados || !user.horarios) {
         return true;
     }
-    
     const agora = new Date();
     const diasSemana = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
     const diaHoje = diasSemana[agora.getDay()];
     const configDia = user.horarios[diaHoje];
-    
     if (!configDia || !configDia.ativo) {
         return false;
     }
-    
     const horaAtualStr = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
-    const dentroHorario = horaAtualStr >= configDia.inicio && horaAtualStr <= configDia.fim;
-    
-    if (!dentroHorario) {
-        return false;
-    }
-    
-    return true;
+    return horaAtualStr >= configDia.inicio && horaAtualStr <= configDia.fim;
 }
 
-// ================================================================
-// FAZER LOGIN (CORRIGIDO)
-// ================================================================
 async function fazerLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const senha = document.getElementById('loginSenha').value.trim();
@@ -171,11 +156,8 @@ async function fazerLogin() {
     if (!user) { document.getElementById('loginErro').textContent = 'E-mail ou senha incorretos.'; return; }
     if (user.status !== 'ativo') { document.getElementById('loginErro').textContent = 'Seu cadastro está pendente de aprovação.'; return; }
 
-    // VALIDAÇÃO DE HORÁRIO DE ACESSO
     if (!validarHorarioAcesso(user)) {
-      const mensagem = '❌ Acesso bloqueado: Fora do horário de trabalho permitido.';
-      document.getElementById('loginErro').textContent = mensagem;
-      alert(mensagem);
+      document.getElementById('loginErro').textContent = '❌ Acesso bloqueado: Fora do horário de trabalho permitido.';
       return;
     }
 
@@ -194,14 +176,13 @@ async function fazerLogin() {
       btnLogo.style.display = (user.nivel === 'desenvolvedor' || user.nivel === 'admin' || user.nivel === 'gestor') ? '' : 'none';
     }
 
-    // Mostrar horário atual e botão Meu Horário
-    mostrarHorarioAtual(user);
     const btnMeusHorarios = document.getElementById('btnMeusHorarios');
     if (btnMeusHorarios) {
       const podeVerHorarios = ['desenvolvedor', 'admin', 'gestor'].includes(user.nivel);
       btnMeusHorarios.style.display = podeVerHorarios ? '' : 'none';
     }
-
+    
+    mostrarHorarioAtual(user);
     carregarLogo();
     mostrarAbasPorNivel(user.nivel);
     iniciarMonitoramentoHorario(user);
@@ -218,20 +199,15 @@ async function fazerLogin() {
     iniciarPolling();
   } catch (err) {
     document.getElementById('loginErro').textContent = 'Erro de conexão: ' + err.message;
-    console.error('Erro no login:', err);
   } finally {
     btn.disabled = false; btn.textContent = 'Entrar';
   }
 }
 
-// ================================================================
-// FUNÇÃO PARA MOSTRAR HORÁRIO ATUAL DO USUÁRIO
-// ================================================================
 function mostrarHorarioAtual(user) {
     const horarioSpan = document.getElementById('horarioAtual');
     if (!horarioSpan) return;
     
-    // Desenvolvedor não tem restrição - mostra mensagem especial
     if (user.nivel === 'desenvolvedor' || user.nivel === 'admin') {
         horarioSpan.style.display = 'inline';
         horarioSpan.textContent = '🟢 Acesso irrestrito';
@@ -242,7 +218,6 @@ function mostrarHorarioAtual(user) {
         return;
     }
     
-    // Se não tiver horários configurados
     if (!user.horariosConfigurados || !user.horarios) {
         horarioSpan.style.display = 'none';
         return;
@@ -256,7 +231,6 @@ function mostrarHorarioAtual(user) {
     if (configDia && configDia.ativo) {
         const horaAtualStr = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
         const dentroHorario = horaAtualStr >= configDia.inicio && horaAtualStr <= configDia.fim;
-        
         horarioSpan.style.display = 'inline';
         horarioSpan.textContent = `🕐 ${configDia.inicio} - ${configDia.fim}`;
         horarioSpan.style.color = dentroHorario ? '#10b981' : '#ef4444';
@@ -273,14 +247,10 @@ function mostrarHorarioAtual(user) {
     }
 }
 
-// ================================================================
-// FUNÇÃO PARA ATUALIZAR INDICADOR DE HORÁRIO
-// ================================================================
 function atualizarIndicadorHorario(user) {
     const horarioSpan = document.getElementById('horarioAtual');
     if (!horarioSpan || !user) return;
     
-    // Desenvolvedor - acesso irrestrito
     if (user.nivel === 'desenvolvedor' || user.nivel === 'admin') {
         horarioSpan.textContent = '🟢 Acesso irrestrito';
         horarioSpan.style.color = '#10b981';
@@ -325,13 +295,9 @@ function atualizarIndicadorHorario(user) {
     }
 }
 
-// ================================================================
-// MONITORAMENTO DE HORÁRIO (CORRIGIDO)
-// ================================================================
 function iniciarMonitoramentoHorario(user) {
     if (intervaloCronometro) clearInterval(intervaloCronometro);
     
-    // Desenvolvedor NÃO tem monitoramento de horário
     if (user.nivel === 'desenvolvedor' || user.nivel === 'admin') {
         return;
     }
@@ -356,10 +322,8 @@ function iniciarMonitoramentoHorario(user) {
         const diffMs = msFim - agora.getTime();
         const minutosRestantes = diffMs / 60000;
 
-        // Atualizar indicador de horário
         atualizarIndicadorHorario(user);
 
-        // Verificar se já passou do horário
         if (minutosRestantes <= 0) {
             deslogarSistema();
             return;
@@ -385,6 +349,39 @@ function iniciarMonitoramentoHorario(user) {
         }
     }, 1000);
 }
+
+function deslogarSistema() {
+  estado.usuarioAtual = null;
+  localStorage.removeItem('usuarioLogado');
+  localStorage.removeItem('nivelUsuario');
+  document.querySelector('.app-container').style.display = 'none';
+  document.getElementById('telaLogin').style.display = 'flex';
+  const cronometro = document.getElementById('cronometroSaida');
+  if (cronometro) cronometro.style.display = 'none';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginSenha').value = '';
+  if (intervaloCronometro) clearInterval(intervaloCronometro);
+  if (pollingInterval) clearInterval(pollingInterval);
+}
+
+function fecharModalSenha() { document.getElementById('modalAlterarSenha').style.display = 'none'; }
+
+async function salvarNovaSenha() {
+  const s1 = document.getElementById('novaSenhaInput').value;
+  const s2 = document.getElementById('confirmarNovaSenhaInput').value;
+  if (!s1 || s1.length < 6) return alert('Senha deve ter no mínimo 6 caracteres.');
+  if (s1 !== s2) return alert('As senhas não coincidem.');
+
+  try {
+    estado.usuarioAtual.senha = s1;
+    await upstash('SET', `user:${estado.usuarioAtual.id}`, JSON.stringify(estado.usuarioAtual));
+    alert('Senha alterada com sucesso!');
+    fecharModalSenha();
+    document.getElementById('novaSenhaInput').value = '';
+    document.getElementById('confirmarNovaSenhaInput').value = '';
+  } catch (err) { alert('Erro ao alterar senha: ' + err.message); }
+}
+
 // ================================================================
 // CARREGAR DADOS GERAIS
 // ================================================================
@@ -1036,46 +1033,6 @@ window.reativarJovem = async function(id) {
     alert('✅ Jovem reativado com sucesso!');
   } catch (err) {
     alert('Erro ao reativar: ' + err.message);
-  }
-};
-
-window.alterarStatusManual = async function(id, novoStatus, motivo = '') {
-  if (!NIVEIS_COM_STATUS.includes(estado.usuarioAtual?.nivel)) {
-    alert('Você não tem permissão para alterar status.');
-    return;
-  }
-  
-  const jovem = estado.jovens.find(j => j.id === id);
-  if (!jovem) return;
-  
-  const statusPermitidos = ['ativo', 'suspenso', 'descumprimento'];
-  if (!statusPermitidos.includes(novoStatus)) {
-    alert('Status inválido.');
-    return;
-  }
-  
-  jovem.status = novoStatus;
-  if (novoStatus === 'suspenso' && motivo) {
-    jovem.motivoSuspensao = motivo;
-    jovem.dataSuspensao = new Date().toISOString();
-    jovem.suspensoPor = estado.usuarioAtual?.nome || 'Sistema';
-  } else if (novoStatus === 'descumprimento') {
-    jovem.dataDescumprimento = new Date().toISOString();
-  }
-  
-  if (!jovem.observacoes) jovem.observacoes = [];
-  jovem.observacoes.push({
-    data: new Date().toISOString(),
-    profissional: estado.usuarioAtual?.nome || 'Sistema',
-    texto: `📌 Status alterado manualmente para: ${novoStatus.toUpperCase()}${motivo ? ' - Motivo: ' + motivo : ''}`
-  });
-  
-  try {
-    await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-    await carregarTodosDados();
-    alert(`✅ Status alterado para ${novoStatus.toUpperCase()} com sucesso!`);
-  } catch (err) {
-    alert('Erro ao alterar status: ' + err.message);
   }
 };
 
@@ -1875,16 +1832,111 @@ async function salvarVinculoJovem() {
 function renderizarUsuarios() {
   const tbody = document.getElementById('listaUsuarios');
   if (!tbody) return;
-  tbody.innerHTML = estado.usuarios.filter(u => u.status === 'ativo').map(u => `
+  
+  const podeConfigurarHorarios = ['gestor','desenvolvedor'].includes(estado.usuarioAtual?.nivel);
+  
+  tbody.innerHTML = estado.usuarios.filter(u => u.status === 'ativo').map(u => {
+    const horarioInfo = u.horariosConfigurados ? '✅ Com horário' : '❌ Sem horário';
+    
+    return `
     <tr>
-      <td>${u.nome || '-'}</td><td>${u.email || '-'}</td><td>${NIVEIS_ACESSO[u.nivel]?.nome || u.nivel || '-'}</td>
-      <td style="color:#10b981;">${u.status}</td>
+      <td>${u.nome || '-'}</td>
+      <td>${u.email || '-'}</td>
+      <td>${NIVEIS_ACESSO[u.nivel]?.nome || u.nivel || '-'}</td>
       <td>
-        ${['gestor','desenvolvedor'].includes(estado.usuarioAtual?.nivel) ? `<button onclick="abrirModalHorarios('${u.id}')" class="btn-acao" style="background:#f59e0b; color:white;">⏱️ Horários</button>` : ''}
-        ${NIVEIS_COM_STATUS.includes(estado.usuarioAtual?.nivel) ? `<button onclick="abrirModalExclusao('usuario', '${u.id}', '${u.nome}')" class="btn-acao btn-danger">🗑️</button>` : ''}
+        <span style="color:#10b981;">${u.status}</span>
+        ${u.horariosConfigurados ? `<span style="font-size:0.65rem; color:#6b7280; margin-left:5px; display:block;">${horarioInfo}</span>` : ''}
+      </td>
+      <td>
+        ${podeConfigurarHorarios && u.nivel !== 'desenvolvedor' && u.nivel !== 'admin' ? `<button onclick="abrirModalHorarios('${u.id}')" class="btn-acao" style="background:#f59e0b; color:white; font-size:0.7rem;">⏱️ Horários</button>` : ''}
+        ${podeConfigurarHorarios && u.nivel === 'desenvolvedor' ? `<span style="font-size:0.65rem; color:#10b981;">Acesso irrestrito</span>` : ''}
+        ${NIVEIS_COM_STATUS.includes(estado.usuarioAtual?.nivel) ? `<button onclick="abrirModalExclusao('usuario', '${u.id}', '${u.nome}')" class="btn-acao btn-danger" style="font-size:0.7rem;">🗑️</button>` : ''}
       </td>
     </tr>
-  `).join('');
+  `}).join('');
+}
+
+// ================================================================
+// HORÁRIOS DE ACESSO - CONFIGURAÇÃO
+// ================================================================
+window.abrirModalHorarios = function(id) {
+  const u = estado.usuarios.find(x => x.id === id);
+  if (!u) {
+    alert('Usuário não encontrado.');
+    return;
+  }
+  estado.usuarioEdicaoHorario = u;
+  document.getElementById('nomeUserHorario').textContent = u.nome;
+  
+  const dias = ['segunda','terca','quarta','quinta','sexta'];
+  const cfg = u.horarios || {};
+  
+  document.getElementById('gridHorarios').innerHTML = `
+    <label style="font-weight:600;"><input type="checkbox" id="horariosAtivosGlobais" ${u.horariosConfigurados ? 'checked' : ''}> Limitar Acesso por Horário</label>
+    <div id="diasContainer" style="display:${u.horariosConfigurados ? 'block' : 'none'}; margin-top:10px;">
+      ${dias.map(d => `
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+          <input type="checkbox" id="chk_${d}" ${cfg[d]?.ativo ? 'checked' : ''}>
+          <span style="width:70px; text-transform:capitalize; font-weight:500;">${d}</span>
+          <input type="time" id="ini_${d}" value="${cfg[d]?.inicio || '08:00'}" style="padding:4px 8px; border:1px solid #d1d9e6; border-radius:4px;">
+          <span>até</span>
+          <input type="time" id="fim_${d}" value="${cfg[d]?.fim || '17:00'}" style="padding:4px 8px; border:1px solid #d1d9e6; border-radius:4px;">
+        </div>
+      `).join('')}
+    </div>
+    <p style="font-size:0.75rem; color:#6b7280; margin-top:8px;">* O usuário só poderá acessar nos dias e horários configurados.</p>
+    <p style="font-size:0.75rem; color:#10b981; margin-top:4px;">* Desenvolvedores têm acesso irrestrito independente da configuração.</p>
+  `;
+  document.getElementById('horariosAtivosGlobais').onchange = (e) => {
+    document.getElementById('diasContainer').style.display = e.target.checked ? 'block' : 'none';
+  };
+  document.getElementById('modalHorarios').style.display = 'flex';
+}
+
+window.salvarHorariosUsuario = async function() {
+  const u = estado.usuarioEdicaoHorario;
+  if (!u) return;
+  
+  u.horariosConfigurados = document.getElementById('horariosAtivosGlobais').checked;
+  u.horarios = {};
+  ['segunda','terca','quarta','quinta','sexta'].forEach(d => {
+    u.horarios[d] = {
+      ativo: document.getElementById(`chk_${d}`).checked,
+      inicio: document.getElementById(`ini_${d}`).value,
+      fim: document.getElementById(`fim_${d}`).value
+    };
+  });
+  
+  try {
+    await upstash('SET', `user:${u.id}`, JSON.stringify(u));
+    document.getElementById('modalHorarios').style.display = 'none';
+    alert('✅ Horários de acesso salvos com sucesso!');
+    await carregarTodosDados();
+  } catch (err) {
+    alert('Erro ao salvar horários: ' + err.message);
+  }
+}
+
+async function salvarNovoUsuario() {
+  const nivel = document.getElementById('userNivel').value;
+  if (nivel === 'desenvolvedor') return alert('Não é possível cadastrar Desenvolvedor.');
+
+  const user = {
+    id: 'usr_' + Date.now(),
+    nome: document.getElementById('userNome').value.trim(),
+    email: document.getElementById('userEmail').value.trim(),
+    senha: document.getElementById('userSenha').value.trim(),
+    nivel,
+    status: 'ativo'
+  };
+  if (!user.nome || !user.email || !user.senha) return alert('Preencha todos os campos.');
+  try {
+    await upstash('SET', `user:${user.id}`, JSON.stringify(user));
+    await upstash('SADD', 'users:all', user.id);
+    estado.usuarios.push(user);
+    renderizarUsuarios();
+    ['userNome','userEmail','userSenha'].forEach(id => document.getElementById(id).value = '');
+  } catch (err) { alert('Erro: ' + err.message); }
 }
 
 // ================================================================
@@ -2021,84 +2073,6 @@ async function salvarLogo() {
     alert('Logo atualizado com sucesso!');
     fecharModalLogo();
   } catch (err) { alert('Erro ao salvar logo: ' + err.message); }
-}
-
-// ================================================================
-// HORÁRIOS DE ACESSO
-// ================================================================
-window.abrirModalHorarios = function(id) {
-  const u = estado.usuarios.find(x => x.id === id);
-  if (!u) return;
-  estado.usuarioEdicaoHorario = u;
-  document.getElementById('nomeUserHorario').textContent = u.nome;
-  
-  const dias = ['segunda','terca','quarta','quinta','sexta'];
-  const cfg = u.horarios || {};
-  
-  document.getElementById('gridHorarios').innerHTML = `
-    <label><input type="checkbox" id="horariosAtivosGlobais" ${u.horariosConfigurados ? 'checked' : ''}> Limitar Acesso por Horário</label>
-    <div id="diasContainer" style="display:${u.horariosConfigurados ? 'block' : 'none'}; margin-top:10px;">
-      ${dias.map(d => `
-        <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
-          <input type="checkbox" id="chk_${d}" ${cfg[d]?.ativo ? 'checked' : ''}>
-          <span style="width:70px; text-transform:capitalize;">${d}</span>
-          <input type="time" id="ini_${d}" value="${cfg[d]?.inicio || '08:00'}"> até
-          <input type="time" id="fim_${d}" value="${cfg[d]?.fim || '17:00'}">
-        </div>
-      `).join('')}
-    </div>
-    <p style="font-size:0.75rem; color:#6b7280; margin-top:8px;">* O usuário só poderá acessar nos dias e horários configurados.</p>
-  `;
-  document.getElementById('horariosAtivosGlobais').onchange = (e) => {
-    document.getElementById('diasContainer').style.display = e.target.checked ? 'block' : 'none';
-  };
-  document.getElementById('modalHorarios').style.display = 'flex';
-}
-
-window.salvarHorariosUsuario = async function() {
-  const u = estado.usuarioEdicaoHorario;
-  if (!u) return;
-  
-  u.horariosConfigurados = document.getElementById('horariosAtivosGlobais').checked;
-  u.horarios = {};
-  ['segunda','terca','quarta','quinta','sexta'].forEach(d => {
-    u.horarios[d] = {
-      ativo: document.getElementById(`chk_${d}`).checked,
-      inicio: document.getElementById(`ini_${d}`).value,
-      fim: document.getElementById(`fim_${d}`).value
-    };
-  });
-  
-  try {
-    await upstash('SET', `user:${u.id}`, JSON.stringify(u));
-    document.getElementById('modalHorarios').style.display = 'none';
-    alert('✅ Horários de acesso salvos com sucesso!');
-    await carregarTodosDados();
-  } catch (err) {
-    alert('Erro ao salvar horários: ' + err.message);
-  }
-}
-
-async function salvarNovoUsuario() {
-  const nivel = document.getElementById('userNivel').value;
-  if (nivel === 'desenvolvedor') return alert('Não é possível cadastrar Desenvolvedor.');
-
-  const user = {
-    id: 'usr_' + Date.now(),
-    nome: document.getElementById('userNome').value.trim(),
-    email: document.getElementById('userEmail').value.trim(),
-    senha: document.getElementById('userSenha').value.trim(),
-    nivel,
-    status: 'ativo'
-  };
-  if (!user.nome || !user.email || !user.senha) return alert('Preencha todos os campos.');
-  try {
-    await upstash('SET', `user:${user.id}`, JSON.stringify(user));
-    await upstash('SADD', 'users:all', user.id);
-    estado.usuarios.push(user);
-    renderizarUsuarios();
-    ['userNome','userEmail','userSenha'].forEach(id => document.getElementById(id).value = '');
-  } catch (err) { alert('Erro: ' + err.message); }
 }
 
 // ================================================================
