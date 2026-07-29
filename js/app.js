@@ -96,7 +96,7 @@ function fileToBase64(file) {
 }
 
 // ================================================================
-// LOGIN, HORÁRIOS E SENHA
+// LOGIN, HORÁRIOS E SENHA (CORRIGIDO)
 // ================================================================
 let intervaloCronometro = null;
 let pollingInterval = null;
@@ -155,12 +155,18 @@ async function fazerLogin() {
       btnLogo.style.display = (user.nivel === 'desenvolvedor' || user.nivel === 'admin' || user.nivel === 'gestor') ? '' : 'none';
     }
 
-    // Mostrar horário atual e botão "Meu Horário"
-    mostrarHorarioAtual(user);
+    // ================================================================
+    // MOSTRAR HORÁRIO E BOTÃO MEU HORÁRIO
+    // ================================================================
     const btnMeusHorarios = document.getElementById('btnMeusHorarios');
     if (btnMeusHorarios) {
-      btnMeusHorarios.style.display = (user.nivel === 'desenvolvedor' || user.nivel === 'admin' || user.nivel === 'gestor' || user.horariosConfigurados) ? '' : 'none';
+      // Mostrar para gestores, desenvolvedores e usuários com horários configurados
+      const podeVerHorarios = ['desenvolvedor', 'admin', 'gestor'].includes(user.nivel);
+      btnMeusHorarios.style.display = podeVerHorarios ? '' : 'none';
     }
+    
+    // Mostrar horário atual
+    mostrarHorarioAtual(user);
 
     carregarLogo();
     mostrarAbasPorNivel(user.nivel);
@@ -183,130 +189,134 @@ async function fazerLogin() {
   }
 }
 
-function validarHorarioAcesso(user) {
-  if (user.nivel === 'desenvolvedor' || !user.horariosConfigurados || !user.horarios) return true;
-  const agora = new Date();
-  const diasSemana = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
-  const diaHoje = diasSemana[agora.getDay()];
-  const configDia = user.horarios[diaHoje];
-  if (!configDia || !configDia.ativo) {
-    alert('❌ Hoje não é um dia de trabalho permitido.');
-    return false;
-  }
-  
-  const horaAtualStr = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
-  if (horaAtualStr < configDia.inicio || horaAtualStr > configDia.fim) {
-    alert('❌ Fora do horário de trabalho permitido.\nHorário: ' + configDia.inicio + ' - ' + configDia.fim);
-    return false;
-  }
-  return true;
-}
-
+// ================================================================
+// FUNÇÃO PARA MOSTRAR HORÁRIO ATUAL DO USUÁRIO
+// ================================================================
 function mostrarHorarioAtual(user) {
     const horarioSpan = document.getElementById('horarioAtual');
     if (!horarioSpan) return;
     
-    if (user.horariosConfigurados && user.horarios) {
-        const agora = new Date();
-        const diasSemana = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
-        const diaHoje = diasSemana[agora.getDay()];
-        const configDia = user.horarios[diaHoje];
-        
-        if (configDia && configDia.ativo) {
-            const horaAtualStr = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
-            const dentroHorario = horaAtualStr >= configDia.inicio && horaAtualStr <= configDia.fim;
-            horarioSpan.style.display = 'inline';
-            horarioSpan.textContent = `🕐 ${configDia.inicio} - ${configDia.fim} ${dentroHorario ? '✅' : '🔴'}`;
-            horarioSpan.style.color = dentroHorario ? '#10b981' : '#ef4444';
-        } else {
-            horarioSpan.style.display = 'inline';
-            horarioSpan.textContent = '🔴 Hoje não é dia de trabalho';
-            horarioSpan.style.color = '#ef4444';
-        }
-    } else {
+    // Se não tiver horários configurados, esconde o indicador
+    if (!user.horariosConfigurados || !user.horarios) {
         horarioSpan.style.display = 'none';
+        return;
     }
-}
-
-function iniciarMonitoramentoHorario(user) {
-  if (intervaloCronometro) clearInterval(intervaloCronometro);
-  if (user.nivel === 'desenvolvedor' || !user.horariosConfigurados) return;
-
-  intervaloCronometro = setInterval(() => {
+    
     const agora = new Date();
     const diasSemana = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
     const diaHoje = diasSemana[agora.getDay()];
     const configDia = user.horarios[diaHoje];
     
-    if (!configDia || !configDia.ativo) { deslogarSistema(); return; }
+    if (configDia && configDia.ativo) {
+        const horaAtualStr = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+        const dentroHorario = horaAtualStr >= configDia.inicio && horaAtualStr <= configDia.fim;
+        
+        horarioSpan.style.display = 'inline';
+        horarioSpan.textContent = `🕐 ${configDia.inicio} - ${configDia.fim}`;
+        horarioSpan.style.color = dentroHorario ? '#10b981' : '#ef4444';
+        horarioSpan.style.background = 'rgba(255,255,255,0.1)';
+        horarioSpan.style.padding = '2px 10px';
+        horarioSpan.style.borderRadius = '20px';
+    } else {
+        horarioSpan.style.display = 'inline';
+        horarioSpan.textContent = '🔴 Sem expediente hoje';
+        horarioSpan.style.color = '#ef4444';
+        horarioSpan.style.background = 'rgba(255,255,255,0.1)';
+        horarioSpan.style.padding = '2px 10px';
+        horarioSpan.style.borderRadius = '20px';
+    }
+}
 
+// ================================================================
+// FUNÇÃO PARA ATUALIZAR CRONÔMETRO E INDICADOR
+// ================================================================
+function atualizarIndicadorHorario(user) {
+    const horarioSpan = document.getElementById('horarioAtual');
+    if (!horarioSpan || !user) return;
+    
+    if (!user.horariosConfigurados || !user.horarios) {
+        horarioSpan.style.display = 'none';
+        return;
+    }
+    
+    const agora = new Date();
+    const diasSemana = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+    const diaHoje = diasSemana[agora.getDay()];
+    const configDia = user.horarios[diaHoje];
+    
+    if (!configDia || !configDia.ativo) {
+        horarioSpan.textContent = '🔴 Sem expediente hoje';
+        horarioSpan.style.color = '#ef4444';
+        return;
+    }
+    
     const [horaFim, minFim] = configDia.fim.split(':').map(Number);
     const msFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), horaFim, minFim, 0).getTime();
     const diffMs = msFim - agora.getTime();
     const minutosRestantes = diffMs / 60000;
-
-    const divCronometro = document.getElementById('cronometroSaida');
-    if (!divCronometro) {
-      const cronometro = document.createElement('div');
-      cronometro.id = 'cronometroSaida';
-      cronometro.style.cssText = 'display:none; position:fixed; top:0; left:50%; transform:translateX(-50%); background:#ef4444; color:white; padding:10px 20px; border-radius:0 0 12px 12px; z-index:10000; font-weight:600; box-shadow:0 4px 6px rgba(0,0,0,0.1);';
-      cronometro.innerHTML = `⚠️ Seu turno encerra em: <span id="cronometroTempo">30:00</span>`;
-      document.body.appendChild(cronometro);
-    }
     
-    const divCronometroAtual = document.getElementById('cronometroSaida');
-    if (minutosRestantes <= 0) {
-      deslogarSistema();
-    } else if (minutosRestantes <= 30) {
-      divCronometroAtual.style.display = 'block';
-      const m = Math.floor(minutosRestantes);
-      const s = Math.floor((minutosRestantes - m) * 60);
-      document.getElementById('cronometroTempo').textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-      
-      // Atualizar também o indicador de horário
-      const horarioSpan = document.getElementById('horarioAtual');
-      if (horarioSpan) {
+    const horaAtualStr = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+    const dentroHorario = horaAtualStr >= configDia.inicio && horaAtualStr <= configDia.fim;
+    
+    if (dentroHorario && minutosRestantes <= 30 && minutosRestantes > 0) {
+        const m = Math.floor(minutosRestantes);
+        const s = Math.floor((minutosRestantes - m) * 60);
         horarioSpan.textContent = `⏳ ${m}m ${s}s restantes`;
         horarioSpan.style.color = '#f59e0b';
-      }
+    } else if (dentroHorario) {
+        horarioSpan.textContent = `🕐 ${configDia.inicio} - ${configDia.fim} ✅`;
+        horarioSpan.style.color = '#10b981';
     } else {
-      divCronometroAtual.style.display = 'none';
+        horarioSpan.textContent = `🔴 Fora do horário`;
+        horarioSpan.style.color = '#ef4444';
     }
-  }, 1000);
 }
 
-function deslogarSistema() {
-  estado.usuarioAtual = null;
-  localStorage.removeItem('usuarioLogado');
-  localStorage.removeItem('nivelUsuario');
-  document.querySelector('.app-container').style.display = 'none';
-  document.getElementById('telaLogin').style.display = 'flex';
-  const cronometro = document.getElementById('cronometroSaida');
-  if (cronometro) cronometro.style.display = 'none';
-  document.getElementById('loginEmail').value = '';
-  document.getElementById('loginSenha').value = '';
-  if (intervaloCronometro) clearInterval(intervaloCronometro);
-  if (pollingInterval) clearInterval(pollingInterval);
+// ================================================================
+// MONITORAMENTO DE HORÁRIO (CORRIGIDO)
+// ================================================================
+function iniciarMonitoramentoHorario(user) {
+    if (intervaloCronometro) clearInterval(intervaloCronometro);
+    if (user.nivel === 'desenvolvedor' || !user.horariosConfigurados) return;
+
+    intervaloCronometro = setInterval(() => {
+        const agora = new Date();
+        const diasSemana = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+        const diaHoje = diasSemana[agora.getDay()];
+        const configDia = user.horarios[diaHoje];
+        
+        if (!configDia || !configDia.ativo) { deslogarSistema(); return; }
+
+        const [horaFim, minFim] = configDia.fim.split(':').map(Number);
+        const msFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), horaFim, minFim, 0).getTime();
+        const diffMs = msFim - agora.getTime();
+        const minutosRestantes = diffMs / 60000;
+
+        // Atualizar indicador de horário
+        atualizarIndicadorHorario(user);
+
+        const divCronometro = document.getElementById('cronometroSaida');
+        if (!divCronometro) {
+            const cronometro = document.createElement('div');
+            cronometro.id = 'cronometroSaida';
+            cronometro.style.cssText = 'display:none; position:fixed; top:0; left:50%; transform:translateX(-50%); background:#ef4444; color:white; padding:10px 20px; border-radius:0 0 12px 12px; z-index:10000; font-weight:600; box-shadow:0 4px 6px rgba(0,0,0,0.1);';
+            cronometro.innerHTML = `⚠️ Seu turno encerra em: <span id="cronometroTempo">30:00</span>`;
+            document.body.appendChild(cronometro);
+        }
+        
+        const divCronometroAtual = document.getElementById('cronometroSaida');
+        if (minutosRestantes <= 0) {
+            deslogarSistema();
+        } else if (minutosRestantes <= 30) {
+            divCronometroAtual.style.display = 'block';
+            const m = Math.floor(minutosRestantes);
+            const s = Math.floor((minutosRestantes - m) * 60);
+            document.getElementById('cronometroTempo').textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        } else {
+            divCronometroAtual.style.display = 'none';
+        }
+    }, 1000);
 }
-
-function fecharModalSenha() { document.getElementById('modalAlterarSenha').style.display = 'none'; }
-
-async function salvarNovaSenha() {
-  const s1 = document.getElementById('novaSenhaInput').value;
-  const s2 = document.getElementById('confirmarNovaSenhaInput').value;
-  if (!s1 || s1.length < 6) return alert('Senha deve ter no mínimo 6 caracteres.');
-  if (s1 !== s2) return alert('As senhas não coincidem.');
-
-  try {
-    estado.usuarioAtual.senha = s1;
-    await upstash('SET', `user:${estado.usuarioAtual.id}`, JSON.stringify(estado.usuarioAtual));
-    alert('Senha alterada com sucesso!');
-    fecharModalSenha();
-    document.getElementById('novaSenhaInput').value = '';
-    document.getElementById('confirmarNovaSenhaInput').value = '';
-  } catch (err) { alert('Erro ao alterar senha: ' + err.message); }
-}
-
 // ================================================================
 // CARREGAR DADOS GERAIS
 // ================================================================
