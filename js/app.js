@@ -1744,7 +1744,7 @@ window.renderizarRelatorios = function() {
 }
 
 // ================================================================
-// USUÁRIOS E APROVAÇÕES
+// USUÁRIOS E APROVAÇÕES (CORRIGIDO - COM BOTÃO DE HORÁRIOS)
 // ================================================================
 async function cadastrarUsuario() {
   const nome = document.getElementById('cadastroNome').value.trim();
@@ -1829,14 +1829,53 @@ async function salvarVinculoJovem() {
   } catch (err) { alert('Erro: ' + err.message); }
 }
 
+// ================================================================
+// RENDERIZAR USUÁRIOS (CORRIGIDO - COM BOTÃO DE HORÁRIOS)
+// ================================================================
 function renderizarUsuarios() {
   const tbody = document.getElementById('listaUsuarios');
-  if (!tbody) return;
+  if (!tbody) {
+    console.warn('Elemento listaUsuarios não encontrado');
+    return;
+  }
   
-  const podeConfigurarHorarios = ['gestor','desenvolvedor'].includes(estado.usuarioAtual?.nivel);
+  const usuarioAtual = estado.usuarioAtual;
+  if (!usuarioAtual) {
+    console.warn('Usuário não logado');
+    return;
+  }
   
-  tbody.innerHTML = estado.usuarios.filter(u => u.status === 'ativo').map(u => {
+  const podeConfigurarHorarios = ['gestor', 'desenvolvedor', 'admin'].includes(usuarioAtual.nivel);
+  
+  console.log('Renderizando usuários. Usuário atual:', usuarioAtual.nivel, 'Pode configurar horários:', podeConfigurarHorarios);
+  
+  const usuariosAtivos = estado.usuarios.filter(u => u.status === 'ativo');
+  
+  if (usuariosAtivos.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#6b7280;">Nenhum usuário ativo encontrado.</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = usuariosAtivos.map(u => {
     const horarioInfo = u.horariosConfigurados ? '✅ Com horário' : '❌ Sem horário';
+    const isDesenvolvedor = u.nivel === 'desenvolvedor' || u.nivel === 'admin';
+    const isProprioUsuario = u.id === usuarioAtual.id;
+    
+    // Botão de horários
+    let botoesHorarios = '';
+    if (podeConfigurarHorarios) {
+      if (isProprioUsuario) {
+        botoesHorarios = `<button onclick="abrirModalHorarios('${u.id}')" class="btn-acao" style="background:#3b82f6; color:white; font-size:0.7rem;">👤 Meu Horário</button>`;
+      } else if (isDesenvolvedor) {
+        botoesHorarios = `<span style="font-size:0.65rem; color:#10b981;">🔓 Acesso irrestrito</span>`;
+      } else {
+        botoesHorarios = `<button onclick="abrirModalHorarios('${u.id}')" class="btn-acao" style="background:#f59e0b; color:white; font-size:0.7rem;">⏱️ Horários</button>`;
+      }
+    }
+    
+    // Botão de excluir
+    const podeExcluir = NIVEIS_COM_STATUS.includes(usuarioAtual.nivel) && !isProprioUsuario;
+    const botaoExcluir = podeExcluir ? `<button onclick="abrirModalExclusao('usuario', '${u.id}', '${u.nome}')" class="btn-acao btn-danger" style="font-size:0.7rem;">🗑️</button>` : '';
     
     return `
     <tr>
@@ -1847,10 +1886,9 @@ function renderizarUsuarios() {
         <span style="color:#10b981;">${u.status}</span>
         ${u.horariosConfigurados ? `<span style="font-size:0.65rem; color:#6b7280; margin-left:5px; display:block;">${horarioInfo}</span>` : ''}
       </td>
-      <td>
-        ${podeConfigurarHorarios && u.nivel !== 'desenvolvedor' && u.nivel !== 'admin' ? `<button onclick="abrirModalHorarios('${u.id}')" class="btn-acao" style="background:#f59e0b; color:white; font-size:0.7rem;">⏱️ Horários</button>` : ''}
-        ${podeConfigurarHorarios && u.nivel === 'desenvolvedor' ? `<span style="font-size:0.65rem; color:#10b981;">Acesso irrestrito</span>` : ''}
-        ${NIVEIS_COM_STATUS.includes(estado.usuarioAtual?.nivel) ? `<button onclick="abrirModalExclusao('usuario', '${u.id}', '${u.nome}')" class="btn-acao btn-danger" style="font-size:0.7rem;">🗑️</button>` : ''}
+      <td style="display:flex; gap:4px; flex-wrap:wrap;">
+        ${botoesHorarios}
+        ${botaoExcluir}
       </td>
     </tr>
   `}).join('');
@@ -1860,22 +1898,32 @@ function renderizarUsuarios() {
 // HORÁRIOS DE ACESSO - CONFIGURAÇÃO
 // ================================================================
 window.abrirModalHorarios = function(id) {
+  console.log('Abrindo modal de horários para usuário:', id);
+  
   const u = estado.usuarios.find(x => x.id === id);
   if (!u) {
     alert('Usuário não encontrado.');
     return;
   }
+  
   estado.usuarioEdicaoHorario = u;
   document.getElementById('nomeUserHorario').textContent = u.nome;
   
-  const dias = ['segunda','terca','quarta','quinta','sexta'];
+  const dias = ['segunda', 'terca', 'quarta', 'quinta', 'sexta'];
   const cfg = u.horarios || {};
   
   document.getElementById('gridHorarios').innerHTML = `
-    <label style="font-weight:600;"><input type="checkbox" id="horariosAtivosGlobais" ${u.horariosConfigurados ? 'checked' : ''}> Limitar Acesso por Horário</label>
+    <div style="background:#f0fdf4; padding:10px; border-radius:8px; margin-bottom:12px; border:1px solid #86efac;">
+      <strong>👤 Configurando: ${u.nome}</strong>
+      <span style="margin-left:10px; font-size:0.8rem; color:#6b7280;">(${NIVEIS_ACESSO[u.nivel]?.nome || u.nivel})</span>
+    </div>
+    <label style="font-weight:600; display:block; margin-bottom:8px;">
+      <input type="checkbox" id="horariosAtivosGlobais" ${u.horariosConfigurados ? 'checked' : ''}> 
+      Limitar Acesso por Horário
+    </label>
     <div id="diasContainer" style="display:${u.horariosConfigurados ? 'block' : 'none'}; margin-top:10px;">
       ${dias.map(d => `
-        <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap; background:#f8fafc; padding:6px 10px; border-radius:6px;">
           <input type="checkbox" id="chk_${d}" ${cfg[d]?.ativo ? 'checked' : ''}>
           <span style="width:70px; text-transform:capitalize; font-weight:500;">${d}</span>
           <input type="time" id="ini_${d}" value="${cfg[d]?.inicio || '08:00'}" style="padding:4px 8px; border:1px solid #d1d9e6; border-radius:4px;">
@@ -1886,10 +1934,13 @@ window.abrirModalHorarios = function(id) {
     </div>
     <p style="font-size:0.75rem; color:#6b7280; margin-top:8px;">* O usuário só poderá acessar nos dias e horários configurados.</p>
     <p style="font-size:0.75rem; color:#10b981; margin-top:4px;">* Desenvolvedores têm acesso irrestrito independente da configuração.</p>
+    ${u.nivel === 'desenvolvedor' || u.nivel === 'admin' ? `<p style="font-size:0.75rem; color:#f59e0b; margin-top:4px;">⚠️ Este usuário é desenvolvedor e tem acesso irrestrito.</p>` : ''}
   `;
+  
   document.getElementById('horariosAtivosGlobais').onchange = (e) => {
     document.getElementById('diasContainer').style.display = e.target.checked ? 'block' : 'none';
   };
+  
   document.getElementById('modalHorarios').style.display = 'flex';
 }
 
