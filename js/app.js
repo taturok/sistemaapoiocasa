@@ -1330,63 +1330,94 @@ async function registrarPontoDigital() {
 }
 
 // ================================================================
-// FICHA DO JOVEM E ACOMPANHAMENTO LA
+// FICHA DO JOVEM E ACOMPANHAMENTO LA (CORRIGIDO)
 // ================================================================
+window.abrirFichaModal = function(id) {
+    if (!id) {
+        alert('ID do jovem não fornecido.');
+        return;
+    }
+    
+    const jovem = estado.jovens.find(j => j.id === id);
+    if (!jovem) {
+        alert('Jovem não encontrado.');
+        return;
+    }
+    
+    const modalFicha = document.getElementById('modalFicha');
+    if (!modalFicha) {
+        alert('Modal de ficha não encontrado.');
+        return;
+    }
+    
+    document.getElementById('fichaTitulo').textContent = `📋 Ficha: ${jovem['NOME'] || 'Sem nome'}`;
+    
+    let acoesLAHTML = '';
+    if (jovem['MEDIDA'] === 'LA') {
+        const acoes = jovem.acoesLA || [];
+        const profs = estado.usuarios.filter(u => u.nivel === 'tecnico' || u.nivel === 'gestor');
+        
+        acoesLAHTML = `
+            <h3 style="margin-top:20px; border-bottom:2px solid #e2e8f0; padding-bottom:5px;">Acompanhamento LA</h3>
+            <div style="margin-bottom:15px;">
+                <label style="font-weight:bold;">Profissional Responsável:</label>
+                <select onchange="vincularProfissionalLA('${jovem.id}', this.value)" style="padding:5px; border-radius:5px; margin-left:10px; border:1px solid #d1d9e6;">
+                    <option value="">Não atribuído</option>
+                    ${profs.map(p => `<option value="${p.id}" ${jovem.profissionalLA === p.id ? 'selected' : ''}>${p.nome}</option>`).join('')}
+                </select>
+            </div>
+            <ul style="list-style:none; padding:0;">
+                ${acoes.map(a => `
+                    <li style="padding:10px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:5px; display:flex; justify-content:space-between; align-items:center; border-radius:8px;">
+                        <span style="${a.realizado ? 'text-decoration:line-through; color:#10b981;' : ''}">${a.texto}</span>
+                        <button class="btn btn-${a.realizado ? 'success' : 'secondary'}" onclick="toggleAcaoLA('${jovem.id}', ${a.id})" style="padding:4px 12px; font-size:0.8rem; border:none; border-radius:20px; cursor:pointer; background:${a.realizado ? '#10b981' : '#6c757d'}; color:white;">
+                            ${a.realizado ? '✅ Feito' : 'Marcar Feito'}
+                        </button>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    }
+
+    const hist = jovem.historicoFrequencia || [];
+    const totalHoras = hist.reduce((s, h) => s + parseFloat(h.horas || 0), 0);
+    const saldo = jovem['MEDIDA'] === 'LA' ? 'N/A' : calcularSaldo(jovem) + 'h';
+    
+    const frequenciaHTML = hist.length > 0 ? 
+        `<ul style="list-style:none; padding:0; margin-top:10px;">
+            ${hist.sort((a, b) => new Date(a.data) - new Date(b.data)).map(h => {
+                const tipoLabel = h.tipo === 'saida' ? '🚪 Saída' : '🚪 Entrada';
+                const horasLabel = h.tipo === 'saida' ? '' : `${parseFloat(h.horas || 0).toFixed(1)}h`;
+                return `<li style="padding:6px 0; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                    <span>${tipoLabel} - ${new Date(h.data).toLocaleDateString('pt-BR')} ${new Date(h.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</span>
+                    <span>${horasLabel} ${h.observacao ? '- ' + h.observacao : ''}</span>
+                </li>`;
+            }).join('')}
+        </ul>` : 
+        '<p style="color:#6b7280;">Sem registros de frequência</p>';
+    
+    document.getElementById('fichaConteudo').innerHTML = `
+        <div style="margin-bottom:20px;">
+            <h3 style="border-bottom:2px solid #e2e8f0; padding-bottom:8px;">Dados Pessoais</h3>
+            <div class="grid-campos" style="display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; margin-top:12px;">
+                ${CAMPOS.map(([key, label]) => `<div class="campo-item" style="padding:4px 0; border-bottom:1px solid #e9edf2;"><strong style="font-size:0.78rem; color:#1e2a4a;">${label}:</strong> ${jovem[key] || '-'}</div>`).join('')}
+                <div class="campo-item" style="padding:4px 0; border-bottom:1px solid #e9edf2;"><strong style="font-size:0.78rem; color:#1e2a4a;">ID Digital:</strong> ${jovem['ID_DIGITAL'] || '-'}</div>
+            </div>
+        </div>
+        ${acoesLAHTML}
+        <div class="secao-historico" style="margin-top:20px;">
+            <h4 style="border-bottom:2px solid #e2e8f0; padding-bottom:8px;">📊 Frequência (${hist.length} registros) | Total: ${jovem['MEDIDA'] === 'LA' ? 'N/A' : totalHoras.toFixed(1) + 'h'} | Saldo: ${saldo}</h4>
+            ${frequenciaHTML}
+        </div>
+    `;
+    
+    modalFicha.style.display = 'flex';
+};
+
 function popularSelectAcompInd() {
   const select = document.getElementById('selectJovemAcomp');
   if (!select) return;
   select.innerHTML = '<option value="">Selecione um jovem...</option>' + estado.jovens.sort((a, b) => (a['NOME'] || '').localeCompare(b['NOME'] || '', 'pt-BR')).map(j => `<option value="${j.id}">${j['NOME'] || j['REFERENCIA']} - ${j['MEDIDA'] || ''}</option>`).join('');
-}
-
-window.abrirFichaModal = function(id) {
-  const jovem = estado.jovens.find(j => j.id === id);
-  if (!jovem) return;
-  document.getElementById('fichaTitulo').textContent = `Ficha: ${jovem['NOME']}`;
-  
-  let acoesLAHTML = '';
-  if (jovem['MEDIDA'] === 'LA') {
-    const acoes = jovem.acoesLA || [];
-    const profs = estado.usuarios.filter(u => u.nivel === 'tecnico' || u.nivel === 'gestor');
-    
-    acoesLAHTML = `
-      <h3 style="margin-top:20px; border-bottom:2px solid #e2e8f0; padding-bottom:5px;">Acompanhamento LA</h3>
-      <div style="margin-bottom:15px;">
-        <label style="font-weight:bold;">Profissional Responsável:</label>
-        <select onchange="vincularProfissionalLA('${jovem.id}', this.value)" style="padding:5px; border-radius:5px; margin-left:10px;">
-          <option value="">Não atribuído</option>
-          ${profs.map(p => `<option value="${p.id}" ${jovem.profissionalLA === p.id ? 'selected' : ''}>${p.nome}</option>`).join('')}
-        </select>
-      </div>
-      <ul style="list-style:none; padding:0;">
-        ${acoes.map(a => `
-          <li style="padding:10px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="${a.realizado ? 'text-decoration:line-through; color:#10b981;' : ''}">${a.texto}</span>
-            <button class="btn btn-${a.realizado ? 'success' : 'secondary'}" onclick="toggleAcaoLA('${jovem.id}', ${a.id})" style="padding:4px 8px; font-size:0.8rem;">${a.realizado ? '✅ Feito' : 'Marcar Feito'}</button>
-          </li>
-        `).join('')}
-      </ul>
-    `;
-  }
-
-  const hist = jovem.historicoFrequencia || [];
-  const totalHoras = hist.reduce((s, h) => s + parseNum(h.horas), 0);
-  
-  document.getElementById('fichaConteudo').innerHTML = `
-    <h3>Dados Pessoais</h3>
-    <div class="grid-campos">
-      ${CAMPOS.map(([key, label]) => `<div class="campo-item"><strong>${label}:</strong> ${jovem[key] || '-'}</div>`).join('')}
-    </div>
-    ${acoesLAHTML}
-    <div class="secao-historico">
-      <h4>Frequência (${hist.length} registros) | Total: ${jovem['MEDIDA'] === 'LA' ? 'N/A' : totalHoras.toFixed(1) + 'h'}</h4>
-      <ul>${hist.map(h => {
-        const tipoLabel = h.tipo === 'saida' ? '🚪 Saída' : '🚪 Entrada';
-        const horasLabel = h.tipo === 'saida' ? '' : `${h.horas || 0}h`;
-        return `<li>${tipoLabel} - ${new Date(h.data).toLocaleDateString('pt-BR')} ${new Date(h.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})} ${horasLabel ? '- ' + horasLabel : ''} ${h.observacao || ''}</li>`;
-      }).join('') || '<li>Sem registros</li>'}</ul>
-    </div>
-  `;
-  document.getElementById('modalFicha').style.display = 'flex';
 }
 
 window.toggleAcaoLA = async function(jovemId, acaoId) {
@@ -1629,6 +1660,277 @@ function renderizarPlanejamentos() {
     `).join('');
   }
 }
+
+// ================================================================
+// CORREÇÃO: IMPRIMIR FICHA INDIVIDUAL
+// ================================================================
+window.imprimirFichaIndividual = function() {
+    const id = document.getElementById('selectJovemAcomp').value;
+    if (!id) {
+        alert('Selecione um jovem primeiro.');
+        return;
+    }
+    
+    const jovem = estado.jovens.find(j => j.id === id);
+    if (!jovem) {
+        alert('Jovem não encontrado.');
+        return;
+    }
+    
+    // Criar uma janela de impressão
+    const win = window.open('', '_blank');
+    if (!win) {
+        alert('Por favor, permita pop-ups para imprimir a ficha.');
+        return;
+    }
+    
+    // Gerar HTML da ficha para impressão
+    let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Ficha Individual - ${jovem['NOME'] || 'Jovem'}</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+            body { padding: 40px; background: white; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2c3e66; padding-bottom: 15px; }
+            .header h1 { color: #2c3e66; font-size: 24px; }
+            .header p { color: #6b7280; font-size: 14px; }
+            .section { margin-bottom: 25px; }
+            .section h2 { color: #2c3e66; font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+            .field { padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+            .field strong { color: #1e2a4a; font-size: 12px; text-transform: uppercase; display: block; }
+            .field span { font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+            th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e9edf2; }
+            th { background: #f1f5f9; font-weight: 600; }
+            .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+            .badge-success { background: #d1fae5; color: #065f46; }
+            .badge-warning { background: #fef3c7; color: #92400e; }
+            .badge-danger { background: #fee2e2; color: #991b1b; }
+            .footer { margin-top: 30px; text-align: center; color: #94a3b8; font-size: 11px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+            @media print { body { padding: 20px; } .no-print { display: none; } }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>📋 Ficha Individual de Acompanhamento</h1>
+            <p>Medidas Socioeducativas - Sistema de Controle</p>
+            <p style="font-size: 12px; color: #6b7280;">Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+        </div>
+    `;
+    
+    // Dados Pessoais
+    html += `
+        <div class="section">
+            <h2>Dados Pessoais</h2>
+            <div class="grid">
+    `;
+    
+    CAMPOS.forEach(([key, label]) => {
+        const valor = jovem[key] || '-';
+        html += `<div class="field"><strong>${label}:</strong><span>${valor}</span></div>`;
+    });
+    
+    html += `
+                <div class="field"><strong>ID Digital:</strong><span>${jovem['ID_DIGITAL'] || '-'}</span></div>
+            </div>
+        </div>
+    `;
+    
+    // Ações LA (se for LA)
+    if (jovem['MEDIDA'] === 'LA') {
+        const acoes = jovem.acoesLA || [];
+        const concluidas = acoes.filter(a => a.realizado).length;
+        html += `
+            <div class="section">
+                <h2>Liberdade Assistida - Ações/Compromissos</h2>
+                <p style="margin-bottom: 10px; color: #6b7280;">Progresso: ${concluidas}/${acoes.length} ações concluídas</p>
+                <ul style="list-style: none; padding: 0;">
+        `;
+        acoes.forEach(a => {
+            html += `<li style="padding: 8px; background: ${a.realizado ? '#d1fae5' : '#f8fafc'}; border: 1px solid ${a.realizado ? '#10b981' : '#e2e8f0'}; margin-bottom: 5px; border-radius: 4px;">
+                <span style="${a.realizado ? 'text-decoration: line-through; color: #065f46;' : ''}">${a.texto}</span>
+                <span style="float: right; font-size: 12px; color: ${a.realizado ? '#065f46' : '#92400e'};">${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}</span>
+            </li>`;
+        });
+        html += `</ul></div>`;
+    }
+    
+    // Frequência
+    const hist = jovem.historicoFrequencia || [];
+    const totalHoras = hist.reduce((s, h) => s + parseFloat(h.horas || 0), 0);
+    const saldo = jovem['MEDIDA'] === 'LA' ? 'N/A' : calcularSaldo(jovem) + 'h';
+    
+    html += `
+        <div class="section">
+            <h2>📊 Frequência</h2>
+            <div style="display: flex; gap: 20px; margin-bottom: 10px; flex-wrap: wrap;">
+                <span><strong>Total de registros:</strong> ${hist.length}</span>
+                <span><strong>Total de horas:</strong> ${totalHoras.toFixed(1)}h</span>
+                <span><strong>Saldo restante:</strong> ${saldo}</span>
+            </div>
+    `;
+    
+    if (hist.length > 0) {
+        html += `
+            <table>
+                <thead><tr><th>Tipo</th><th>Data/Hora</th><th>Horas</th><th>Observação</th></tr></thead>
+                <tbody>
+        `;
+        hist.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(h => {
+            const tipo = h.tipo === 'saida' ? '🚪 Saída' : '🚪 Entrada';
+            const horas = h.tipo === 'saida' ? '-' : (parseFloat(h.horas || 0).toFixed(1) + 'h');
+            const data = new Date(h.data).toLocaleDateString('pt-BR') + ' ' + new Date(h.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+            html += `<tr><td>${tipo}</td><td>${data}</td><td>${horas}</td><td>${h.observacao || '-'}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+    } else {
+        html += `<p style="color: #6b7280;">Nenhum registro de frequência.</p>`;
+    }
+    html += `</div>`;
+    
+    // Oficinas
+    const oficinasParticipadas = estado.oficinas.filter(o => (o.jovensIds || []).includes(jovem.id));
+    html += `
+        <div class="section">
+            <h2>🛠️ Oficinas Participadas</h2>
+    `;
+    if (oficinasParticipadas.length > 0) {
+        html += `
+            <table>
+                <thead><tr><th>Data</th><th>Conteúdo</th><th>Benefício Social</th></tr></thead>
+                <tbody>
+        `;
+        oficinasParticipadas.forEach(o => {
+            html += `<tr><td>${new Date(o.data).toLocaleDateString('pt-BR')}</td><td>${o.conteudo}</td><td>${o.reverte ? '✅ Sim' : 'Não'}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+    } else {
+        html += `<p style="color: #6b7280;">Nenhuma oficina registrada.</p>`;
+    }
+    html += `</div>`;
+    
+    // Observações
+    const obs = jovem.observacoes || [];
+    html += `
+        <div class="section">
+            <h2>📝 Observações</h2>
+    `;
+    if (obs.length > 0) {
+        obs.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(o => {
+            html += `
+                <div style="background: #f8fafc; padding: 10px; border-left: 3px solid #8b5cf6; margin-bottom: 8px;">
+                    <strong>${o.profissional || 'Sistema'}</strong>
+                    <span style="color: #6b7280; font-size: 12px;"> - ${new Date(o.data).toLocaleDateString('pt-BR')} ${new Date(o.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</span>
+                    <p style="margin-top: 4px; color: #475569;">${o.texto}</p>
+                </div>
+            `;
+        });
+    } else {
+        html += `<p style="color: #6b7280;">Nenhuma observação registrada.</p>`;
+    }
+    html += `</div>`;
+    
+    // Footer
+    html += `
+        <div class="footer">
+            <p>Documento gerado pelo Sistema de Controle de Medidas Socioeducativas</p>
+            <p>Este documento é de uso interno e deve ser tratado com confidencialidade</p>
+        </div>
+        <div class="no-print" style="text-align: center; margin-top: 20px; padding: 15px; background: #f1f5f9; border-radius: 8px;">
+            <button onclick="window.print()" style="padding: 10px 30px; background: #2c3e66; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🖨️ Imprimir</button>
+            <button onclick="window.close()" style="padding: 10px 30px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-left: 10px;">Fechar</button>
+        </div>
+    </body>
+    </html>
+    `;
+    
+    win.document.write(html);
+    win.document.close();
+};
+
+// ================================================================
+// REMOVER DOCUMENTO
+// ================================================================
+window.removerDocumento = async function(jovemId, index) {
+    if (!confirm('Tem certeza que deseja remover este documento?')) return;
+    
+    const jovem = estado.jovens.find(j => j.id === jovemId);
+    if (!jovem) return;
+    
+    jovem.documentos = jovem.documentos || [];
+    jovem.documentos.splice(index, 1);
+    
+    try {
+        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
+        carregarFichaIndividual();
+        alert('Documento removido com sucesso!');
+    } catch (err) {
+        alert('Erro ao remover documento: ' + err.message);
+    }
+};
+
+// ================================================================
+// ADICIONAR DOCUMENTO
+// ================================================================
+window.adicionarDocumento = function() {
+    document.getElementById('modalDocumento').style.display = 'flex';
+    document.getElementById('docNome').value = '';
+    document.getElementById('docTipo').value = 'pdf';
+    document.getElementById('docArquivo').value = '';
+};
+
+window.fecharModalDocumento = function() {
+    document.getElementById('modalDocumento').style.display = 'none';
+};
+
+window.salvarDocumento = async function() {
+    const jovemId = window._jovemDocAtual;
+    if (!jovemId) {
+        alert('Selecione um jovem primeiro.');
+        return;
+    }
+    
+    const nome = document.getElementById('docNome').value.trim();
+    const tipo = document.getElementById('docTipo').value;
+    const arquivo = document.getElementById('docArquivo').files[0];
+    
+    if (!nome) {
+        alert('Digite o nome do documento.');
+        return;
+    }
+    
+    if (!arquivo) {
+        alert('Selecione um arquivo.');
+        return;
+    }
+    
+    try {
+        const base64 = await fileToBase64(arquivo);
+        const jovem = estado.jovens.find(j => j.id === jovemId);
+        if (!jovem) {
+            alert('Jovem não encontrado.');
+            return;
+        }
+        
+        jovem.documentos = jovem.documentos || [];
+        jovem.documentos.push({
+            nome: nome,
+            tipo: tipo,
+            base64: base64,
+            data: new Date().toISOString()
+        });
+        
+        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
+        fecharModalDocumento();
+        carregarFichaIndividual();
+        alert('Documento adicionado com sucesso!');
+    } catch (err) {
+        alert('Erro ao salvar documento: ' + err.message);
+    }
+};
 
 // ================================================================
 // EVENT LISTENERS E INICIALIZAÇÃO
