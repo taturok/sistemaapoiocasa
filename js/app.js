@@ -876,6 +876,26 @@ window.salvarSuspensao = async function() {
 }
 
 // ================================================================
+// REATIVAR JOVEM (NOVA FUNÇÃO)
+// ================================================================
+window.reativarJovem = async function(id) {
+    if (!confirm('Tem certeza que deseja reativar este jovem?')) return;
+    const jovem = estado.jovens.find(j => j.id === id);
+    if (!jovem) return;
+    jovem.status = 'ativo';
+    jovem.motivoSuspensao = '';
+    jovem.dataSuspensao = '';
+    try {
+        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
+        carregarLista();
+        renderizarDashboard();
+        alert('✅ Jovem reativado com sucesso!');
+    } catch (err) {
+        alert('Erro ao reativar: ' + err.message);
+    }
+};
+
+// ================================================================
 // CARREGAR DADOS GERAIS
 // ================================================================
 async function carregarTodosDados() {
@@ -1188,7 +1208,7 @@ window.editarJovem = function(id) {
 };
 
 // ================================================================
-// LISTA E FILTROS DE FREQUÊNCIA (COM CONTADOR)
+// LISTA E FILTROS DE FREQUÊNCIA (COM CONTADOR E BOTÃO REATIVAR)
 // ================================================================
 function carregarLista() {
     const tbody = document.getElementById('listaCorpo');
@@ -1244,6 +1264,16 @@ function carregarLista() {
             }
         }
 
+        // Botões de Suspender/Reativar
+        let botoesStatus = '';
+        if (['gestor','tecnico'].includes(estado.usuarioAtual?.nivel)) {
+            if (j._statusRender === 'suspenso') {
+                botoesStatus = `<button onclick="reativarJovem('${j.id}')" class="btn-acao" style="background:#10b981; color:white;">✅ Reativar</button>`;
+            } else if (j._statusRender !== 'concluído' && j['MEDIDA'] !== 'Liberação') {
+                botoesStatus = `<button onclick="abrirModalSuspensao('${j.id}', '${j['NOME']}')" class="btn-acao" style="background:#be185d; color:white;">🔴 Suspender</button>`;
+            }
+        }
+
         return `<tr>
             <td>${j['NOME'] || j['REFERENCIA'] || '-'}</td>
             <td>${j['ID_DIGITAL'] || '-'}</td>
@@ -1256,7 +1286,7 @@ function carregarLista() {
                 ${podeRegistrarPonto && j['MEDIDA'] !== 'LA' ? `<button onclick="registrarPontoNaLinha('${j.id}')" class="btn-acao ${temEntradaAberta ? 'btn-ponto-saida' : 'btn-ponto-entrada'}">${temEntradaAberta ? '🚪 Saída' : '🚪 Entrada'}</button>` : ''}
                 <button onclick="editarJovem('${j.id}')" class="btn-acao btn-edit">✏️</button>
                 <button onclick="abrirFichaModal('${j.id}')" class="btn-acao btn-ficha">📋 Ficha</button>
-                ${['gestor','tecnico'].includes(estado.usuarioAtual?.nivel) && j._statusRender !== 'suspenso' ? `<button onclick="abrirModalSuspensao('${j.id}', '${j['NOME']}')" class="btn-acao" style="background:#be185d; color:white;">🔴 Suspender</button>` : ''}
+                ${botoesStatus}
                 <button onclick="abrirModalExclusao('jovem', '${j.id}', '${j['NOME']}')" class="btn-acao btn-danger">🗑️</button>
             </td>
         </tr>`;
