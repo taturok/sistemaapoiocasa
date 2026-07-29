@@ -101,6 +101,42 @@ function fileToBase64(file) {
 let intervaloCronometro = null;
 let pollingInterval = null;
 
+// ================================================================
+// VALIDAR HORÁRIO DE ACESSO (DEFINIDA COMO FUNÇÃO GLOBAL)
+// ================================================================
+function validarHorarioAcesso(user) {
+    // Desenvolvedor NÃO tem limitação de horário
+    if (user.nivel === 'desenvolvedor' || user.nivel === 'admin') {
+        return true;
+    }
+    
+    // Se não tiver horários configurados, permite acesso
+    if (!user.horariosConfigurados || !user.horarios) {
+        return true;
+    }
+    
+    const agora = new Date();
+    const diasSemana = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+    const diaHoje = diasSemana[agora.getDay()];
+    const configDia = user.horarios[diaHoje];
+    
+    if (!configDia || !configDia.ativo) {
+        return false;
+    }
+    
+    const horaAtualStr = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+    const dentroHorario = horaAtualStr >= configDia.inicio && horaAtualStr <= configDia.fim;
+    
+    if (!dentroHorario) {
+        return false;
+    }
+    
+    return true;
+}
+
+// ================================================================
+// FAZER LOGIN (CORRIGIDO)
+// ================================================================
 async function fazerLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const senha = document.getElementById('loginSenha').value.trim();
@@ -135,8 +171,11 @@ async function fazerLogin() {
     if (!user) { document.getElementById('loginErro').textContent = 'E-mail ou senha incorretos.'; return; }
     if (user.status !== 'ativo') { document.getElementById('loginErro').textContent = 'Seu cadastro está pendente de aprovação.'; return; }
 
+    // VALIDAÇÃO DE HORÁRIO DE ACESSO
     if (!validarHorarioAcesso(user)) {
-      document.getElementById('loginErro').textContent = '❌ Acesso bloqueado: Fora do horário de trabalho permitido.';
+      const mensagem = '❌ Acesso bloqueado: Fora do horário de trabalho permitido.';
+      document.getElementById('loginErro').textContent = mensagem;
+      alert(mensagem);
       return;
     }
 
@@ -155,18 +194,13 @@ async function fazerLogin() {
       btnLogo.style.display = (user.nivel === 'desenvolvedor' || user.nivel === 'admin' || user.nivel === 'gestor') ? '' : 'none';
     }
 
-    // ================================================================
-    // MOSTRAR HORÁRIO E BOTÃO MEU HORÁRIO
-    // ================================================================
+    // Mostrar horário atual e botão Meu Horário
+    mostrarHorarioAtual(user);
     const btnMeusHorarios = document.getElementById('btnMeusHorarios');
     if (btnMeusHorarios) {
-      // Mostrar para gestores, desenvolvedores e usuários com horários configurados
       const podeVerHorarios = ['desenvolvedor', 'admin', 'gestor'].includes(user.nivel);
       btnMeusHorarios.style.display = podeVerHorarios ? '' : 'none';
     }
-    
-    // Mostrar horário atual
-    mostrarHorarioAtual(user);
 
     carregarLogo();
     mostrarAbasPorNivel(user.nivel);
@@ -184,6 +218,7 @@ async function fazerLogin() {
     iniciarPolling();
   } catch (err) {
     document.getElementById('loginErro').textContent = 'Erro de conexão: ' + err.message;
+    console.error('Erro no login:', err);
   } finally {
     btn.disabled = false; btn.textContent = 'Entrar';
   }
@@ -196,7 +231,18 @@ function mostrarHorarioAtual(user) {
     const horarioSpan = document.getElementById('horarioAtual');
     if (!horarioSpan) return;
     
-    // Se não tiver horários configurados, esconde o indicador
+    // Desenvolvedor não tem restrição - mostra mensagem especial
+    if (user.nivel === 'desenvolvedor' || user.nivel === 'admin') {
+        horarioSpan.style.display = 'inline';
+        horarioSpan.textContent = '🟢 Acesso irrestrito';
+        horarioSpan.style.color = '#10b981';
+        horarioSpan.style.background = 'rgba(255,255,255,0.1)';
+        horarioSpan.style.padding = '2px 10px';
+        horarioSpan.style.borderRadius = '20px';
+        return;
+    }
+    
+    // Se não tiver horários configurados
     if (!user.horariosConfigurados || !user.horarios) {
         horarioSpan.style.display = 'none';
         return;
@@ -228,11 +274,18 @@ function mostrarHorarioAtual(user) {
 }
 
 // ================================================================
-// FUNÇÃO PARA ATUALIZAR CRONÔMETRO E INDICADOR
+// FUNÇÃO PARA ATUALIZAR INDICADOR DE HORÁRIO
 // ================================================================
 function atualizarIndicadorHorario(user) {
     const horarioSpan = document.getElementById('horarioAtual');
     if (!horarioSpan || !user) return;
+    
+    // Desenvolvedor - acesso irrestrito
+    if (user.nivel === 'desenvolvedor' || user.nivel === 'admin') {
+        horarioSpan.textContent = '🟢 Acesso irrestrito';
+        horarioSpan.style.color = '#10b981';
+        return;
+    }
     
     if (!user.horariosConfigurados || !user.horarios) {
         horarioSpan.style.display = 'none';
@@ -277,7 +330,15 @@ function atualizarIndicadorHorario(user) {
 // ================================================================
 function iniciarMonitoramentoHorario(user) {
     if (intervaloCronometro) clearInterval(intervaloCronometro);
-    if (user.nivel === 'desenvolvedor' || !user.horariosConfigurados) return;
+    
+    // Desenvolvedor NÃO tem monitoramento de horário
+    if (user.nivel === 'desenvolvedor' || user.nivel === 'admin') {
+        return;
+    }
+    
+    if (!user.horariosConfigurados) {
+        return;
+    }
 
     intervaloCronometro = setInterval(() => {
         const agora = new Date();
@@ -285,7 +346,10 @@ function iniciarMonitoramentoHorario(user) {
         const diaHoje = diasSemana[agora.getDay()];
         const configDia = user.horarios[diaHoje];
         
-        if (!configDia || !configDia.ativo) { deslogarSistema(); return; }
+        if (!configDia || !configDia.ativo) { 
+            deslogarSistema(); 
+            return; 
+        }
 
         const [horaFim, minFim] = configDia.fim.split(':').map(Number);
         const msFim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), horaFim, minFim, 0).getTime();
@@ -294,6 +358,12 @@ function iniciarMonitoramentoHorario(user) {
 
         // Atualizar indicador de horário
         atualizarIndicadorHorario(user);
+
+        // Verificar se já passou do horário
+        if (minutosRestantes <= 0) {
+            deslogarSistema();
+            return;
+        }
 
         const divCronometro = document.getElementById('cronometroSaida');
         if (!divCronometro) {
@@ -305,9 +375,7 @@ function iniciarMonitoramentoHorario(user) {
         }
         
         const divCronometroAtual = document.getElementById('cronometroSaida');
-        if (minutosRestantes <= 0) {
-            deslogarSistema();
-        } else if (minutosRestantes <= 30) {
+        if (minutosRestantes <= 30) {
             divCronometroAtual.style.display = 'block';
             const m = Math.floor(minutosRestantes);
             const s = Math.floor((minutosRestantes - m) * 60);
