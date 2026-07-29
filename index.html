@@ -52,7 +52,7 @@
     
     <div class="tabs" id="tabsContainer">
         <button class="tab-btn active" data-tab="tabDashboard" data-niveis="desenvolvedor,admin,gestor,tecnico,oficineiro,autoridade">📊 Dashboard</button>
-        <button class="tab-btn" data-tab="tabDashboardJovem" data-niveis="jovem">📋 Minhas Horas</button>
+        <button class="tab-btn" data-tab="tabDashboardJovem" data-niveis="jovem">📋 Minhas Ações</button>
         <button class="tab-btn" data-tab="tab1" data-niveis="desenvolvedor,admin,gestor,tecnico,autoridade">📝 Cadastrar Jovem</button>
         <button class="tab-btn" data-tab="tab2" data-niveis="desenvolvedor,admin,gestor,tecnico,autoridade">📊 Acompanhamento Geral</button>
         <button class="tab-btn" data-tab="tab3" data-niveis="desenvolvedor,admin,gestor,tecnico,autoridade">📈 Relatórios</button>
@@ -62,6 +62,7 @@
         <button class="tab-btn" data-tab="tab6" data-niveis="desenvolvedor,admin,gestor,tecnico,oficineiro,autoridade">🛠️ Oficinas</button>
         <button class="tab-btn" data-tab="tabUsuarios" data-niveis="desenvolvedor,admin,gestor,autoridade">👤 Usuários</button>
         <button class="tab-btn" data-tab="tabMensagens" data-niveis="desenvolvedor,admin,gestor,autoridade">💬 Mensagens</button>
+        <button class="tab-btn" data-tab="tabPlanejamento" data-niveis="desenvolvedor,admin,gestor,oficineiro">📅 Planejamento</button>
     </div>
 
     <!-- DASHBOARD -->
@@ -105,7 +106,7 @@
         <div id="statusImportacao" style="margin-top:10px; display:none; padding:10px; border-radius:8px;"></div>
     </div>
 
-    <!-- ABA 2: ACOMPANHAMENTO GERAL (antes Frequência) -->
+    <!-- ABA 2: ACOMPANHAMENTO GERAL -->
     <div id="tab2" class="tab-content">
         <div class="leitor-digital">
             <h3>🖐️ Leitor de Impressão Digital</h3>
@@ -114,14 +115,22 @@
             <button id="btnPontoDigital" class="btn btn-primary">Registrar Ponto</button>
             <div id="mensagemPonto" style="margin-top: 10px; font-weight: 600;"></div>
         </div>
+        <div class="filtros-avancados" id="filtrosFrequencia">
+            <div class="campo"><label>Buscar Nome/ID</label><input type="text" id="filtroNome" oninput="carregarLista()"></div>
+            <div class="campo"><label>Medida</label><select id="filtroMedida" onchange="carregarLista()"><option value="">Todas</option><option value="LA">LA</option><option value="PSC">PSC</option><option value="Internação">Internação</option><option value="Liberação">Liberação</option></select></div>
+            <div class="campo"><label>Status</label><select id="filtroStatus" onchange="carregarLista()"><option value="">Todos</option><option value="ativo">Ativo</option><option value="suspenso">Suspenso</option><option value="descumprimento">Descumprimento</option><option value="concluído">Concluído</option></select></div>
+            <div class="campo"><label>Saldo</label><select id="filtroSaldo" onchange="carregarLista()"><option value="">Todos</option><option value="critico">Crítico (>0h)</option><option value="zerado">Zerado</option></select></div>
+            <div class="campo"><label>Gênero</label><select id="filtroGenero" onchange="carregarLista()"><option value="">Todos</option><option value="M">Masculino</option><option value="F">Feminino</option><option value="NB">Não-binário</option></select></div>
+            <div class="campo"><label>Idade</label><select id="filtroIdade" onchange="carregarLista()"><option value="">Todas</option><option value="12-15">12 a 15</option><option value="16-18">16 a 18</option><option value="19+">19+</option></select></div>
+        </div>
         <div class="busca">
-            <input type="text" id="buscaFrequencia" placeholder="🔍 Buscar...">
+            <input type="text" id="buscaFrequencia" placeholder="🔍 Buscar rápido...">
             <button id="exportarExcelBtn" class="btn btn-success">📎 Exportar</button>
             <button id="registroManualBtn" class="btn btn-info">🕒 Registro Manual</button>
         </div>
         <div class="tabela-wrapper">
             <table>
-                <thead><tr><th>Nome</th><th>ID Digital</th><th>Idade</th><th>Medida</th><th>Saldo (h)</th><th>Status</th><th>Último</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Nome</th><th>ID Digital</th><th>Idade</th><th>Medida</th><th>Saldo (h)</th><th>Status</th><th>Motivo</th><th>Último</th><th>Ações</th></tr></thead>
                 <tbody id="listaCorpo"></tbody>
             </table>
             <div id="contadorContainer"></div>
@@ -151,6 +160,12 @@
                 </div>
             </div>
         </div>
+        <div class="card" style="margin-top:20px; border-left-color:#10b981; background:#ecfdf5;">
+            <h3>🌱 Relatório de Oficinas Revertidas em Benefício Social</h3>
+            <p style="font-size:0.8rem; color:#065f46; margin-bottom:10px;">Oficinas que geraram benefício direto à sociedade.</p>
+            <button class="btn btn-success" onclick="abrirRelatorioRevertencia()">📊 Visualizar Relatório Completo</button>
+            <div id="relatorioRevertenciaPreview" style="margin-top:15px;"></div>
+        </div>
     </div>
 
     <!-- ABA 4: PROFISSIONAIS -->
@@ -176,7 +191,7 @@
                 <div class="tabela-wrapper"><table><thead><tr><th>Jovem</th><th>Último</th><th>Dias</th><th>Ação</th></tr></thead><tbody id="tabela7dias"></tbody></table></div>
             </div>
             <div class="card card-alerta">
-                <h3>🚨 14+ dias</h3>
+                <h3>🚨 14+ dias - Descumprimento</h3>
                 <div class="tabela-wrapper"><table><thead><tr><th>Jovem</th><th>Último</th><th>Dias</th><th>Ação</th></tr></thead><tbody id="tabela14dias"></tbody></table></div>
             </div>
         </div>
@@ -240,6 +255,12 @@
             <div class="campo" style="margin-bottom:16px;"><label>Conteúdo</label><textarea id="oficinaConteudo" rows="2"></textarea></div>
             <div class="campo" style="margin-bottom:16px;"><label><input type="checkbox" id="oficinaReverte"> Reverteu em benefício para a sociedade?</label></div>
             <div class="campo" style="margin-bottom:12px;">
+                <label><input type="checkbox" id="oficinaCursoObg" onchange="document.getElementById('oficinaGeraHorasContainer').style.display = this.checked ? 'block' : 'none'"> É Curso Obrigatório?</label>
+                <div id="oficinaGeraHorasContainer" style="display:none; margin-top:5px; padding-left:20px;">
+                   <label><input type="checkbox" id="oficinaGeraHoras" checked> Este curso contabiliza horas para o jovem?</label>
+                </div>
+            </div>
+            <div class="campo" style="margin-bottom:12px;">
                 <label>Jovens Presentes</label>
                 <input type="text" id="buscaJovensOficina" placeholder="🔍 Buscar jovem por nome..." oninput="filtrarJovensOficina()">
             </div>
@@ -250,12 +271,38 @@
         <div id="listaOficinas"></div>
     </div>
 
-    <!-- ABA MENSAGENS (Gestor <-> Autoridade Jurídica) -->
+    <!-- ABA PLANEJAMENTO DE OFICINAS -->
+    <div id="tabPlanejamento" class="tab-content">
+        <h2>📅 Planejamento de Oficinas</h2>
+        <div class="card" style="margin-bottom:24px; border-left-color:#3b82f6; background:#eff6ff;">
+            <h3>➕ Novo Planejamento</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom:16px;">
+                <div class="campo"><label>Data</label><input type="date" id="planData"></div>
+                <div class="campo"><label>Período</label>
+                    <select id="planPeriodo"><option value="manhã">Manhã</option><option value="tarde">Tarde</option><option value="noite">Noite</option></select>
+                </div>
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label>Título da Oficina</label>
+                <input type="text" id="planTitulo" placeholder="Ex: Oficina de Artes">
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label>Descrição</label>
+                <textarea id="planDesc" rows="3" placeholder="Descrição detalhada da oficina..."></textarea>
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label>Materiais Necessários</label>
+                <input type="text" id="planMats" placeholder="Separados por vírgula: papel, tinta, pincéis">
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label><input type="checkbox" id="planReverte"> Reverte em benefício à sociedade?</label></div>
+            <button class="btn btn-primary" onclick="salvarPlanejamento()">💾 Salvar Planejamento</button>
+        </div>
+        <h3 style="margin-bottom:16px;">📋 Planejamentos Salvos</h3>
+        <div id="listaPlanejamentosHTML" style="display:grid; gap:15px;"></div>
+    </div>
+
+    <!-- ABA MENSAGENS -->
     <div id="tabMensagens" class="tab-content">
         <h2>💬 Mensagens</h2>
         <p style="color:#6b7280; margin-bottom:15px;" id="msgSubtitulo">Envie e receba mensagens.</p>
         
-        <!-- Nova mensagem -->
         <div class="card" style="border-left-color:#3b82f6; margin-bottom:24px;">
             <h3>✉️ Enviar Nova Mensagem</h3>
             <div class="campo" style="margin-bottom:12px;"><label>Para</label>
@@ -273,7 +320,6 @@
             <button onclick="enviarMensagem()" class="btn btn-primary">📤 Enviar</button>
         </div>
 
-        <!-- Caixa de entrada -->
         <h3 style="margin-bottom:12px;">📥 Caixa de Entrada</h3>
         <div id="listaMensagens" style="margin-bottom:24px;"></div>
     </div>
@@ -349,6 +395,119 @@
         <div class="modal-actions">
             <button class="btn btn-secondary" onclick="fecharModalDocumento()">Cancelar</button>
             <button class="btn btn-primary" onclick="salvarDocumento()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Suspensão com Motivo -->
+<div class="modal-overlay" id="modalSuspensao">
+    <div class="modal-box" style="border-top: 5px solid #be185d;">
+        <h2 style="color:#be185d;">🔴 Suspender Jovem</h2>
+        <p id="nomeJovemSuspensao" style="font-weight:600; margin-bottom:15px;"></p>
+        <div class="campo">
+            <label>Motivo da Suspensão *</label>
+            <textarea id="motivoSuspensaoInput" rows="3" placeholder="Descreva o motivo da suspensão..."></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('modalSuspensao').style.display='none'">Cancelar</button>
+            <button class="btn" style="background:#be185d; color:white;" onclick="salvarSuspensao()">Confirmar Suspensão</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmação Exclusão -->
+<div class="modal-overlay" id="modalConfirmExclusao">
+    <div class="modal-box" style="max-width:400px;">
+        <h2>⚠️ Confirmar Exclusão</h2>
+        <p id="textoConfirmExclusao" style="color:#6b7280; margin-bottom:20px;"></p>
+        <p style="font-weight:600; color:#dc3545;">Tem certeza que deseja apagar este registro?</p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('modalConfirmExclusao').style.display='none'">Cancelar</button>
+            <button class="btn btn-danger" onclick="executarExclusao()">Excluir Permanentemente</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Horários -->
+<div class="modal-overlay" id="modalHorarios">
+    <div class="modal-box" style="max-width:600px;">
+        <h2>⏰ Configurar Acesso: <span id="nomeUserHorario"></span></h2>
+        <div id="gridHorarios" style="display:grid; gap:10px; margin-top:15px;"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('modalHorarios').style.display='none'">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarHorariosUsuario()">Salvar Horários</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Aviso Gestor -->
+<div class="modal-overlay" id="modalAvisoGestor">
+    <div class="modal-box" style="max-width:700px;">
+        <h2>⚠️ Atenção: Jovens em Descumprimento</h2>
+        <div style="display:flex; gap:20px; margin-top:15px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:200px;">
+                <h4 style="color:#f59e0b;">🕒 7+ Dias Sem Comparecer</h4>
+                <ul id="listaAviso7Dias" style="color:#6b7280; font-size:0.9rem; padding-left:20px; max-height:200px; overflow-y:auto;"></ul>
+            </div>
+            <div style="flex:1; min-width:200px;">
+                <h4 style="color:#ef4444;">🚨 14+ Dias - Descumprimento</h4>
+                <ul id="listaAviso14Dias" style="color:#6b7280; font-size:0.9rem; padding-left:20px; max-height:200px; overflow-y:auto;"></ul>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="document.getElementById('modalAvisoGestor').style.display='none'">Estou Ciente</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Vincular Jovem -->
+<div class="modal-overlay" id="modalVincularJovem">
+    <div class="modal-box">
+        <h2>🔗 Vincular Usuário a Jovem</h2>
+        <p style="color:#6b7280; margin-bottom:15px;">Selecione o jovem correspondente a este usuário.</p>
+        <div class="campo">
+            <label>Jovem</label>
+            <select id="selectVincularJovem"></select>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="fecharModalVincular()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarVinculoJovem()">Vincular e Aprovar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ficha -->
+<div class="modal-overlay" id="modalFicha">
+    <div class="modal-box ficha-container" style="max-width:800px; max-height:90vh; overflow-y:auto;">
+        <h2 id="fichaTitulo">Ficha do Jovem</h2>
+        <div id="fichaConteudo"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('modalFicha').style.display='none'">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Alterar Senha -->
+<div class="modal-overlay" id="modalAlterarSenha">
+    <div class="modal-box">
+        <h2>🔑 Alterar Senha</h2>
+        <div class="campo"><label>Nova Senha</label><input type="password" id="novaSenhaInput"></div>
+        <div class="campo"><label>Confirmar Nova Senha</label><input type="password" id="confirmarNovaSenhaInput"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="fecharModalSenha()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarNovaSenha()">Salvar Senha</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Alterar Logo -->
+<div class="modal-overlay" id="modalAlterarLogo">
+    <div class="modal-box">
+        <h2>🖼️ Alterar Logo</h2>
+        <div class="campo"><label>Imagem do Logo (PNG, JPG)</label><input type="file" id="novaLogoInput" accept="image/*"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="fecharModalLogo()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarLogo()">Salvar Logo</button>
         </div>
     </div>
 </div>
