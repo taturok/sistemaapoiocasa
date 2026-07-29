@@ -1218,19 +1218,19 @@ function carregarLista() {
 // CONTADOR DE JOVENS NA LISTA DE FREQUÊNCIA
 // ================================================================
 function atualizarContadorLista(total) {
-    // Verifica se o contador já existe, se não, cria
-    let contador = document.getElementById('contadorListaJovens');
-    if (!contador) {
+    // Procura o container do contador
+    let contadorContainer = document.getElementById('contadorContainer');
+    if (!contadorContainer) {
+        // Se não existir, cria um dentro do tabela-wrapper
         const tabelaWrapper = document.querySelector('#tab2 .tabela-wrapper');
         if (tabelaWrapper) {
-            contador = document.createElement('div');
-            contador.id = 'contadorListaJovens';
-            contador.style.cssText = 'padding: 10px 15px; font-weight: 600; color: #1e2a4a; background: #f1f5f9; border-radius: 0 0 12px 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;';
-            tabelaWrapper.appendChild(contador);
+            contadorContainer = document.createElement('div');
+            contadorContainer.id = 'contadorContainer';
+            tabelaWrapper.appendChild(contadorContainer);
         }
     }
     
-    if (contador) {
+    if (contadorContainer) {
         const filtrosAtivos = [];
         const filtroNome = document.getElementById('filtroNome')?.value?.trim() || '';
         const filtroMedida = document.getElementById('filtroMedida')?.value || '';
@@ -1247,12 +1247,14 @@ function atualizarContadorLista(total) {
             textoFiltros = ` <span style="font-weight: 400; color: #6b7280; font-size: 0.85rem;">| Filtros: ${filtrosAtivos.join(', ')}</span>`;
         }
         
-        contador.innerHTML = `
-            <span>👥 Total de jovens: <strong style="color: #2c3e66; font-size: 1.1rem;">${total}</strong></span>
-            <span style="font-size: 0.85rem; color: #6b7280;">
-                ${total === 1 ? '1 jovem exibido' : `${total} jovens exibidos`}
-                ${textoFiltros}
-            </span>
+        contadorContainer.innerHTML = `
+            <div id="contadorListaJovens" style="padding: 10px 15px; font-weight: 600; color: #1e2a4a; background: #f1f5f9; border-radius: 0 0 12px 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <span>👥 Total de jovens: <strong style="color: #2c3e66; font-size: 1.1rem;">${total}</strong></span>
+                <span style="font-size: 0.85rem; color: #6b7280;">
+                    ${total === 1 ? '1 jovem exibido' : `${total} jovens exibidos`}
+                    ${textoFiltros}
+                </span>
+            </div>
         `;
     }
 }
