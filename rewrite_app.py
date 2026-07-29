@@ -1,17 +1,559 @@
-import re
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Controle de Medidas</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
 
-def main():
-    with open('/home/ubuntu/projeto/js/app.js', 'r', encoding='utf-8') as f:
-        content = f.read()
+<!-- TELA DE LOGIN -->
+<div id="telaLogin">
+    <div class="login-box">
+        <img id="logoLogin" class="logo-login-img" src="" alt="Logo" style="display:none;">
+        <h2>🔐 Sistema de Controle</h2>
+        <p style="text-align:center; color:#6b7280; margin-bottom:20px;">
+            <span class="status-online"></span> Sistema conectado à nuvem (Upstash)
+        </p>
+        <div class="campo">
+            <label>E-mail</label>
+            <input type="email" id="loginEmail" placeholder="seu@email.com">
+        </div>
+        <div class="campo">
+            <label>Senha</label>
+            <input type="password" id="loginSenha" placeholder="••••••••">
+        </div>
+        <button id="loginBtn" class="btn btn-primary">Entrar</button>
+        <div id="loginErro" class="login-erro"></div>
+        <div style="text-align:center; margin-top:20px;">
+            <a href="#" id="mostrarCadastroBtn" style="color:#3b82f6; text-decoration:none; font-weight:600;">📝 Solicitar Cadastro</a>
+        </div>
+    </div>
+</div>
 
-    # Vamos injetar as funções e correções no código existente.
-    # Em vez de tentar usar regex para substituir pedaços enormes de código complexo,
-    # vamos reescrever o app.js inteiro com base na lógica existente, mas corrigida.
+<!-- APP PRINCIPAL -->
+<div class="app-container">
+    <div class="header">
+        <div class="logo-area">
+            <img id="logoImg" class="logo-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232c3e66'/%3E%3Ctext x='50' y='55' font-size='14' fill='white' text-anchor='middle'%3ELOGO%3C/text%3E%3C/svg%3E" alt="Logo">
+            <div class="inst-name">⚖️ Sistema de Controle de Medidas Socioeducativas</div>
+        </div>
+        <div class="user-info">
+            <span id="nomeUsuario">Usuário</span>
+            <span id="nivelUsuario" style="font-size:0.75rem; color:#f39c12; background:rgba(255,255,255,0.1); padding:2px 10px; border-radius:20px;"></span>
+            <span id="horarioAtual" style="font-size:0.7rem; color:#10b981; display:none; background:rgba(255,255,255,0.1); padding:2px 10px; border-radius:20px;"></span>
+            <button class="btn-logout" id="btnMeusHorarios" style="display:none;">⏱️ Meu Horário</button>
+            <button class="btn-logout" id="btnAlterarLogo" style="display:none;">🖼️ Logo</button>
+            <button class="btn-logout" id="btnAlterarSenha">🔑 Senha</button>
+            <button class="btn-logout" id="logoutBtn">Sair</button>
+        </div>
+    </div>
     
-    # É melhor reescrever do zero (mantendo as funções antigas mas corrigidas)
-    # ou gerar o arquivo final diretamente no python script.
-    
-    pass
+    <div class="tabs" id="tabsContainer">
+        <button class="tab-btn active" data-tab="tabDashboard" data-niveis="desenvolvedor,admin,gestor,tecnico,oficineiro,autoridade">📊 Dashboard</button>
+        <button class="tab-btn" data-tab="tabDashboardJovem" data-niveis="jovem">📋 Minhas Ações</button>
+        <button class="tab-btn" data-tab="tab1" data-niveis="desenvolvedor,admin,gestor,tecnico,autoridade">📝 Cadastrar Jovem</button>
+        <button class="tab-btn" data-tab="tab2" data-niveis="desenvolvedor,admin,gestor,tecnico,autoridade">📊 Acompanhamento Geral</button>
+        <button class="tab-btn" data-tab="tab3" data-niveis="desenvolvedor,admin,gestor,tecnico,autoridade">📈 Relatórios</button>
+        <button class="tab-btn" data-tab="tab4" data-niveis="desenvolvedor,admin,autoridade">👥 Profissionais</button>
+        <button class="tab-btn" data-tab="tab5" data-niveis="desenvolvedor,admin,gestor,tecnico,autoridade">📋 Observações</button>
+        <button class="tab-btn" data-tab="tabAcompInd" data-niveis="desenvolvedor,admin,gestor,autoridade">👤 Acomp. Individual</button>
+        <button class="tab-btn" data-tab="tab6" data-niveis="desenvolvedor,admin,gestor,tecnico,oficineiro,autoridade">🛠️ Oficinas</button>
+        <button class="tab-btn" data-tab="tabUsuarios" data-niveis="desenvolvedor,admin,gestor,autoridade">👤 Usuários</button>
+        <button class="tab-btn" data-tab="tabMensagens" data-niveis="desenvolvedor,admin,gestor,autoridade">💬 Mensagens</button>
+        <button class="tab-btn" data-tab="tabPlanejamento" data-niveis="desenvolvedor,admin,gestor,oficineiro">📅 Planejamento</button>
+    </div>
 
-if __name__ == '__main__':
-    main()
+    <!-- DASHBOARD -->
+    <div id="tabDashboard" class="tab-content active">
+        <div class="dashboard-cards" id="cardsDashboard"></div>
+        <div class="graficos-grid">
+            <div><canvas id="graficoMedidas"></canvas></div>
+            <div><canvas id="graficoGenero"></canvas></div>
+            <div><canvas id="graficoIdade"></canvas></div>
+            <div><canvas id="graficoFrequenciaSemanal"></canvas></div>
+            <div><canvas id="graficoReverte"></canvas></div>
+        </div>
+        <h3 style="margin-top:30px; color:#1e2a4a;">📈 Evolução do Status dos Jovens</h3>
+        <div style="background:#f8fafc; border-radius:12px; padding:20px; margin-top:12px;">
+            <div><canvas id="graficoEvolucao" style="max-height:350px;"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ABA DASHBOARD JOVEM (acesso restrito) -->
+    <div id="tabDashboardJovem" class="tab-content">
+        <h2 style="margin-bottom:20px;">📋 Minhas Informações</h2>
+        <div id="jovemInfoCards" class="dashboard-cards"></div>
+        <div id="jovemFrequencia" style="margin-top:20px;"></div>
+    </div>
+
+    <!-- ABA 1: CADASTRO -->
+    <div id="tab1" class="tab-content">
+        <h2 style="margin-bottom:20px;">🔖 Formulário Completo</h2>
+        <form id="formJovem">
+            <div class="form-grid" id="camposGrid"></div>
+            <div class="campo" style="grid-column: 1 / -1;">
+                <label>🖐️ ID da Impressão Digital</label>
+                <input type="text" id="campo_ID_DIGITAL" placeholder="Ex: 123456" style="max-width:300px;">
+            </div>
+            <div class="acao-botoes">
+                <button type="button" id="salvarBtn" class="btn btn-primary">💾 Salvar Jovem</button>
+                <button type="button" id="importarExcelBtn" class="btn btn-success">📂 Importar Planilha</button>
+                <button type="button" id="limparFormBtn" class="btn btn-secondary">🗑️ Limpar</button>
+            </div>
+        </form>
+        <div id="statusImportacao" style="margin-top:10px; display:none; padding:10px; border-radius:8px;"></div>
+    </div>
+
+    <!-- ABA 2: ACOMPANHAMENTO GERAL -->
+    <div id="tab2" class="tab-content">
+        <div class="leitor-digital">
+            <h3>🖐️ Leitor de Impressão Digital</h3>
+            <input type="text" id="inputDigital" placeholder="Código da digital" autofocus>
+            <br><br>
+            <button id="btnPontoDigital" class="btn btn-primary">Registrar Ponto</button>
+            <div id="mensagemPonto" style="margin-top: 10px; font-weight: 600;"></div>
+        </div>
+        <div class="filtros-avancados" id="filtrosFrequencia">
+            <div class="campo"><label>Buscar Nome/ID</label><input type="text" id="filtroNome" oninput="carregarLista()"></div>
+            <div class="campo"><label>Medida</label><select id="filtroMedida" onchange="carregarLista()"><option value="">Todas</option><option value="LA">LA</option><option value="PSC">PSC</option><option value="Internação">Internação</option><option value="Liberação">Liberação</option></select></div>
+            <div class="campo"><label>Status</label><select id="filtroStatus" onchange="carregarLista()"><option value="">Todos</option><option value="ativo">Ativo</option><option value="suspenso">Suspenso</option><option value="descumprimento">Descumprimento</option><option value="concluído">Concluído</option></select></div>
+            <div class="campo"><label>Saldo</label><select id="filtroSaldo" onchange="carregarLista()"><option value="">Todos</option><option value="critico">Crítico (>0h)</option><option value="zerado">Zerado</option></select></div>
+            <div class="campo"><label>Gênero</label><select id="filtroGenero" onchange="carregarLista()"><option value="">Todos</option><option value="M">Masculino</option><option value="F">Feminino</option><option value="NB">Não-binário</option></select></div>
+            <div class="campo"><label>Idade</label><select id="filtroIdade" onchange="carregarLista()"><option value="">Todas</option><option value="12-15">12 a 15</option><option value="16-18">16 a 18</option><option value="19+">19+</option></select></div>
+        </div>
+        <div class="busca">
+            <input type="text" id="buscaFrequencia" placeholder="🔍 Buscar rápido...">
+            <button id="exportarExcelBtn" class="btn btn-success">📎 Exportar</button>
+            <button id="registroManualBtn" class="btn btn-info">🕒 Registro Manual</button>
+        </div>
+        <div class="tabela-wrapper">
+            <table>
+                <thead><tr><th>Nome</th><th>ID Digital</th><th>Idade</th><th>Medida</th><th>Saldo (h)</th><th>Status</th><th>Motivo</th><th>Último</th><th>Ações</th></tr></thead>
+                <tbody id="listaCorpo"></tbody>
+            </table>
+            <div id="contadorContainer"></div>
+        </div>
+    </div>
+
+    <!-- ABA 3: RELATÓRIOS -->
+    <div id="tab3" class="tab-content">
+        <div class="painel-duplo">
+            <div class="card">
+                <h3>📈 Projeção Quinzenal (Próximos 3 Meses)</h3>
+                <p style="font-size:0.8rem; color:#6b7280; margin-bottom:10px;">Estimativa baseada em 4h/semana por jovem ativo</p>
+                <div class="tabela-wrapper">
+                    <table id="tabelaProjecao">
+                        <thead><tr><th>Quinzena</th><th>Período</th><th>Jovens Ativos</th><th>Horas Est.</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <h3>🎂 Aniversariantes (Próximos 3 Meses)</h3>
+                <div class="tabela-wrapper">
+                    <table id="tabelaAniversariantes">
+                        <thead><tr><th>Jovem</th><th>Nasc.</th><th>Data do Aniversário</th><th>Idade que fará</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="card" style="margin-top:20px; border-left-color:#10b981; background:#ecfdf5;">
+            <h3>🌱 Relatório de Oficinas Revertidas em Benefício Social</h3>
+            <p style="font-size:0.8rem; color:#065f46; margin-bottom:10px;">Oficinas que geraram benefício direto à sociedade.</p>
+            <button class="btn btn-success" onclick="abrirRelatorioRevertencia()">📊 Visualizar Relatório Completo</button>
+            <div id="relatorioRevertenciaPreview" style="margin-top:15px;"></div>
+        </div>
+    </div>
+
+    <!-- ABA 4: PROFISSIONAIS -->
+    <div id="tab4" class="tab-content">
+        <h2>👥 Profissionais</h2>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:20px;">
+            <div class="campo" style="flex:1;"><label>Nome *</label><input type="text" id="profNome"></div>
+            <div class="campo" style="flex:1;"><label>Função</label><input type="text" id="profFuncao"></div>
+            <div class="campo" style="flex:1;"><label>Registro</label><input type="text" id="profRegistro"></div>
+            <div class="campo" style="flex:1;"><label>Nº</label><input type="text" id="profNumero"></div>
+        </div>
+        <button id="salvarProfissionalBtn" class="btn btn-primary">➕ Salvar</button>
+        <div id="listaProfissionais" style="margin-top:24px;"></div>
+    </div>
+
+    <!-- ABA 5: OBSERVAÇÕES -->
+    <div id="tab5" class="tab-content">
+        <h2>📋 Observações</h2>
+        <p style="color:#6b7280; margin-bottom:15px;">Visualize jovens sem comparecimento recente.</p>
+        <div class="painel-duplo">
+            <div class="card card-aviso">
+                <h3>🕒 7 dias sem comparecimento</h3>
+                <div class="tabela-wrapper"><table><thead><tr><th>Jovem</th><th>Último</th><th>Dias</th><th>Ação</th></tr></thead><tbody id="tabela7dias"></tbody></table></div>
+            </div>
+            <div class="card card-alerta">
+                <h3>🚨 14+ dias - Descumprimento</h3>
+                <div class="tabela-wrapper"><table><thead><tr><th>Jovem</th><th>Último</th><th>Dias</th><th>Ação</th></tr></thead><tbody id="tabela14dias"></tbody></table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABA ACOMPANHAMENTO INDIVIDUAL -->
+    <div id="tabAcompInd" class="tab-content">
+        <h2>👤 Acompanhamento Individual</h2>
+        <p style="color:#6b7280; margin-bottom:15px;">Selecione um jovem para visualizar sua ficha completa.</p>
+        <div style="display:flex; gap:16px; align-items:center; margin-bottom:24px; flex-wrap:wrap;">
+            <div class="campo" style="flex:1; max-width:400px;">
+                <label>🔍 Selecionar Jovem</label>
+                <select id="selectJovemAcomp" onchange="carregarFichaIndividual()">
+                    <option value="">Selecione um jovem...</option>
+                </select>
+            </div>
+            <button id="btnImprimirFicha" class="btn btn-primary" onclick="imprimirFichaIndividual()" style="display:none;">🖨️ Imprimir Ficha</button>
+        </div>
+        <div id="fichaIndividual" style="display:none;">
+            <div class="card" style="border-left-color:#2c3e66; background:#f8fafc; margin-bottom:20px;">
+                <h3>📋 Dados Pessoais</h3>
+                <div id="fichaDadosPessoais" class="ficha-grid"></div>
+            </div>
+            <div class="card" style="border-left-color:#3b82f6; background:#eff6ff; margin-bottom:20px;">
+                <h3>📊 Frequência</h3>
+                <div id="fichaFrequencia"></div>
+            </div>
+            <div class="card" style="border-left-color:#10b981; background:#ecfdf5; margin-bottom:20px;">
+                <h3>🛠️ Oficinas Participadas</h3>
+                <div id="fichaOficinas"></div>
+            </div>
+            <div class="card" style="border-left-color:#f59e0b; background:#fffbeb; margin-bottom:20px;">
+                <h3>📁 Documentos</h3>
+                <div style="display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+                    <button onclick="adicionarDocumento()" class="btn btn-success">➕ Adicionar Documento</button>
+                </div>
+                <div id="fichaDocumentos"></div>
+            </div>
+            <div class="card" style="border-left-color:#8b5cf6; background:#f5f3ff; margin-bottom:20px;">
+                <h3>📝 Observações</h3>
+                <div id="fichaObservacoes"></div>
+                <div style="margin-top:12px;">
+                    <div class="campo"><textarea id="obsAcompTexto" rows="2" placeholder="Escreva uma observação..."></textarea></div>
+                    <button onclick="salvarObsAcomp()" class="btn btn-primary" style="margin-top:8px;">Salvar Observação</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABA 6: OFICINAS -->
+    <div id="tab6" class="tab-content">
+        <h2>🛠️ Oficinas</h2>
+        <div class="card" style="margin-bottom:24px; border-left-color:#2c3e66;">
+            <h3>➕ Nova Oficina</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom:16px;">
+                <div class="campo"><label>Data</label><input type="date" id="oficinaData"></div>
+                <div class="campo"><label>Período</label>
+                    <select id="oficinaPeriodo"><option value="manhã">Manhã</option><option value="tarde">Tarde</option><option value="noite">Noite</option></select>
+                </div>
+            </div>
+            <div class="campo" style="margin-bottom:16px;"><label>Conteúdo</label><textarea id="oficinaConteudo" rows="2"></textarea></div>
+            <div class="campo" style="margin-bottom:16px;"><label><input type="checkbox" id="oficinaReverte"> Reverteu em benefício para a sociedade?</label></div>
+            <div class="campo" style="margin-bottom:12px;">
+                <label><input type="checkbox" id="oficinaCursoObg" onchange="document.getElementById('oficinaGeraHorasContainer').style.display = this.checked ? 'block' : 'none'"> É Curso Obrigatório?</label>
+                <div id="oficinaGeraHorasContainer" style="display:none; margin-top:5px; padding-left:20px;">
+                   <label><input type="checkbox" id="oficinaGeraHoras" checked> Este curso contabiliza horas para o jovem?</label>
+                </div>
+            </div>
+            <div class="campo" style="margin-bottom:12px;">
+                <label>Jovens Presentes</label>
+                <input type="text" id="buscaJovensOficina" placeholder="🔍 Buscar jovem por nome..." oninput="filtrarJovensOficina()">
+            </div>
+            <div id="listaJovensOficina" class="lista-jovens-grid"></div>
+            <button id="salvarOficinaBtn" class="btn btn-primary" style="margin-top:16px;">💾 Salvar Oficina</button>
+        </div>
+        <h3 style="margin-bottom:16px;">📋 Oficinas Realizadas</h3>
+        <div id="listaOficinas"></div>
+    </div>
+
+    <!-- ABA PLANEJAMENTO DE OFICINAS -->
+    <div id="tabPlanejamento" class="tab-content">
+        <h2>📅 Planejamento de Oficinas</h2>
+        <div class="card" style="margin-bottom:24px; border-left-color:#3b82f6; background:#eff6ff;">
+            <h3>➕ Novo Planejamento</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom:16px;">
+                <div class="campo"><label>Data</label><input type="date" id="planData"></div>
+                <div class="campo"><label>Período</label>
+                    <select id="planPeriodo"><option value="manhã">Manhã</option><option value="tarde">Tarde</option><option value="noite">Noite</option></select>
+                </div>
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label>Título da Oficina</label>
+                <input type="text" id="planTitulo" placeholder="Ex: Oficina de Artes">
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label>Descrição</label>
+                <textarea id="planDesc" rows="3" placeholder="Descrição detalhada da oficina..."></textarea>
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label>Materiais Necessários</label>
+                <input type="text" id="planMats" placeholder="Separados por vírgula: papel, tinta, pincéis">
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label><input type="checkbox" id="planReverte"> Reverte em benefício à sociedade?</label></div>
+            <button class="btn btn-primary" onclick="salvarPlanejamento()">💾 Salvar Planejamento</button>
+        </div>
+        <h3 style="margin-bottom:16px;">📋 Planejamentos Salvos</h3>
+        <div id="listaPlanejamentosHTML" style="display:grid; gap:15px;"></div>
+    </div>
+
+    <!-- ABA MENSAGENS -->
+    <div id="tabMensagens" class="tab-content">
+        <h2>💬 Mensagens</h2>
+        <p style="color:#6b7280; margin-bottom:15px;" id="msgSubtitulo">Envie e receba mensagens.</p>
+        
+        <div class="card" style="border-left-color:#3b82f6; margin-bottom:24px;">
+            <h3>✉️ Enviar Nova Mensagem</h3>
+            <div class="campo" style="margin-bottom:12px;"><label>Para</label>
+                <select id="msgDestinatario"></select>
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label>Assunto</label>
+                <input type="text" id="msgAssunto" placeholder="Assunto da mensagem">
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label>Mensagem</label>
+                <textarea id="msgTexto" rows="4" placeholder="Escreva sua mensagem..."></textarea>
+            </div>
+            <div class="campo" style="margin-bottom:12px;"><label>Anexos</label>
+                <input type="file" id="msgAnexos" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.xls">
+            </div>
+            <button onclick="enviarMensagem()" class="btn btn-primary">📤 Enviar</button>
+        </div>
+
+        <h3 style="margin-bottom:12px;">📥 Caixa de Entrada</h3>
+        <div id="listaMensagens" style="margin-bottom:24px;"></div>
+    </div>
+
+    <!-- ABA USUÁRIOS -->
+    <div id="tabUsuarios" class="tab-content">
+        <h2>👤 Usuários</h2>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <div class="campo"><label>Nome</label><input type="text" id="userNome"></div>
+            <div class="campo"><label>E-mail</label><input type="email" id="userEmail"></div>
+            <div class="campo"><label>Senha</label><input type="password" id="userSenha"></div>
+            <div class="campo"><label>Nível</label>
+                <select id="userNivel">
+                    <option value="oficineiro">Oficineiro</option>
+                    <option value="tecnico">Técnico</option>
+                    <option value="gestor">Gestor</option>
+                    <option value="desenvolvedor">Desenvolvedor</option>
+                    <option value="jovem">Jovem</option>
+                    <option value="autoridade">Autoridade Jurídica</option>
+                </select>
+            </div>
+            <button id="userSalvarBtn" class="btn btn-primary">Salvar</button>
+        </div>
+        <div class="tabela-wrapper"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Nível</th><th>Status</th><th>Ações</th></tr></thead><tbody id="listaUsuarios"></tbody></table></div>
+    </div>
+
+    <footer>Dados sincronizados na nuvem • Acesse de qualquer dispositivo</footer>
+</div>
+
+<!-- CRONÔMETRO DE SAÍDA (será injetado pelo JS) -->
+
+<!-- MODAIS -->
+<div class="modal-overlay" id="modalObservacao">
+    <div class="modal-box">
+        <h2>📝 Observação</h2>
+        <div class="campo"><label>Profissional</label><input type="text" id="modalProfissionalNome" placeholder="Nome do profissional"></div>
+        <div class="campo"><label>Observação</label><textarea id="modalObservacaoTexto"></textarea></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="modalCancelar">Cancelar</button>
+            <button class="btn btn-primary" id="modalSalvarObs">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalRegistroManual">
+    <div class="modal-box">
+        <h2>📝 Registro Manual</h2>
+        <div class="campo"><label>Jovem</label><select id="manualJovem"></select></div>
+        <div class="campo"><label>Data/Hora</label><input type="datetime-local" id="manualDataHora"></div>
+        <div class="campo"><label>Horas</label><input type="number" id="manualHoras" value="4" min="0.5" step="0.5"></div>
+        <div class="campo"><label>Obs</label><input type="text" id="manualObs"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="manualCancelar">Cancelar</button>
+            <button class="btn btn-primary" id="manualSalvar">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Documento -->
+<div class="modal-overlay" id="modalDocumento">
+    <div class="modal-box">
+        <h2>📁 Adicionar Documento</h2>
+        <div class="campo"><label>Nome do Documento</label><input type="text" id="docNome" placeholder="Ex: Termo de Compromisso"></div>
+        <div class="campo"><label>Tipo</label>
+            <select id="docTipo">
+                <option value="pdf">PDF</option>
+                <option value="doc">Word (.doc/.docx)</option>
+                <option value="img">Imagem</option>
+                <option value="outro">Outro</option>
+            </select>
+        </div>
+        <div class="campo"><label>Arquivo</label>
+            <input type="file" id="docArquivo" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="fecharModalDocumento()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarDocumento()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Suspensão com Motivo -->
+<div class="modal-overlay" id="modalSuspensao">
+    <div class="modal-box" style="border-top: 5px solid #be185d;">
+        <h2 style="color:#be185d;">🔴 Suspender Jovem</h2>
+        <p id="nomeJovemSuspensao" style="font-weight:600; margin-bottom:15px;"></p>
+        <div class="campo">
+            <label>Motivo da Suspensão *</label>
+            <textarea id="motivoSuspensaoInput" rows="3" placeholder="Descreva o motivo da suspensão..."></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('modalSuspensao').style.display='none'">Cancelar</button>
+            <button class="btn" style="background:#be185d; color:white;" onclick="salvarSuspensao()">Confirmar Suspensão</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmação Exclusão -->
+<div class="modal-overlay" id="modalConfirmExclusao">
+    <div class="modal-box" style="max-width:400px;">
+        <h2>⚠️ Confirmar Exclusão</h2>
+        <p id="textoConfirmExclusao" style="color:#6b7280; margin-bottom:20px;"></p>
+        <p style="font-weight:600; color:#dc3545;">Tem certeza que deseja apagar este registro?</p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('modalConfirmExclusao').style.display='none'">Cancelar</button>
+            <button class="btn btn-danger" onclick="executarExclusao()">Excluir Permanentemente</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Horários -->
+<div class="modal-overlay" id="modalHorarios">
+    <div class="modal-box" style="max-width:600px;">
+        <h2>⏰ Configurar Acesso: <span id="nomeUserHorario"></span></h2>
+        <div id="gridHorarios" style="display:grid; gap:10px; margin-top:15px;"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('modalHorarios').style.display='none'">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarHorariosUsuario()">Salvar Horários</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Aviso Gestor -->
+<div class="modal-overlay" id="modalAvisoGestor">
+    <div class="modal-box" style="max-width:700px;">
+        <h2>⚠️ Atenção: Jovens em Descumprimento</h2>
+        <div style="display:flex; gap:20px; margin-top:15px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:200px;">
+                <h4 style="color:#f59e0b;">🕒 7+ Dias Sem Comparecer</h4>
+                <ul id="listaAviso7Dias" style="color:#6b7280; font-size:0.9rem; padding-left:20px; max-height:200px; overflow-y:auto;"></ul>
+            </div>
+            <div style="flex:1; min-width:200px;">
+                <h4 style="color:#ef4444;">🚨 14+ Dias - Descumprimento</h4>
+                <ul id="listaAviso14Dias" style="color:#6b7280; font-size:0.9rem; padding-left:20px; max-height:200px; overflow-y:auto;"></ul>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="document.getElementById('modalAvisoGestor').style.display='none'">Estou Ciente</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Vincular Jovem -->
+<div class="modal-overlay" id="modalVincularJovem">
+    <div class="modal-box">
+        <h2>🔗 Vincular Usuário a Jovem</h2>
+        <p style="color:#6b7280; margin-bottom:15px;">Selecione o jovem correspondente a este usuário.</p>
+        <div class="campo">
+            <label>Jovem</label>
+            <select id="selectVincularJovem"></select>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="fecharModalVincular()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarVinculoJovem()">Vincular e Aprovar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ficha -->
+<div class="modal-overlay" id="modalFicha">
+    <div class="modal-box ficha-container" style="max-width:800px; max-height:90vh; overflow-y:auto;">
+        <h2 id="fichaTitulo">Ficha do Jovem</h2>
+        <div id="fichaConteudo"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="document.getElementById('modalFicha').style.display='none'">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Alterar Senha -->
+<div class="modal-overlay" id="modalAlterarSenha">
+    <div class="modal-box">
+        <h2>🔑 Alterar Senha</h2>
+        <div class="campo"><label>Nova Senha</label><input type="password" id="novaSenhaInput"></div>
+        <div class="campo"><label>Confirmar Nova Senha</label><input type="password" id="confirmarNovaSenhaInput"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="fecharModalSenha()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarNovaSenha()">Salvar Senha</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Alterar Logo -->
+<div class="modal-overlay" id="modalAlterarLogo">
+    <div class="modal-box">
+        <h2>🖼️ Alterar Logo</h2>
+        <div class="campo"><label>Imagem do Logo (PNG, JPG)</label><input type="file" id="novaLogoInput" accept="image/*"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="fecharModalLogo()">Cancelar</button>
+            <button class="btn btn-primary" onclick="salvarLogo()">Salvar Logo</button>
+        </div>
+    </div>
+</div>
+
+<!-- TELA DE CADASTRO (injetada dinamicamente) -->
+<div id="telaCadastro" style="display:none;">
+    <div class="login-box" style="margin: 20px auto;">
+        <h2>📝 Solicitar Cadastro</h2>
+        <p style="text-align:center; color:#6b7280; margin-bottom:20px;">Seu cadastro passará por aprovação.</p>
+        <div class="campo">
+            <label>Nome Completo</label>
+            <input type="text" id="cadastroNome" placeholder="Seu nome completo">
+        </div>
+        <div class="campo">
+            <label>E-mail</label>
+            <input type="email" id="cadastroEmail" placeholder="seu@email.com">
+        </div>
+        <div class="campo">
+            <label>Senha</label>
+            <input type="password" id="cadastroSenha" placeholder="••••••••">
+        </div>
+        <div class="campo">
+            <label>Confirmar Senha</label>
+            <input type="password" id="cadastroSenhaConfirm" placeholder="••••••••">
+        </div>
+        <div class="campo">
+            <label>Nível de Acesso</label>
+            <select id="cadastroNivel">
+                <option value="oficineiro">Oficineiro</option>
+                <option value="tecnico">Técnico</option>
+                <option value="gestor">Gestor</option>
+                <option value="autoridade">Autoridade Jurídica</option>
+                <option value="jovem">Jovem</option>
+            </select>
+        </div>
+        <button id="cadastrarBtn" class="btn btn-primary" style="margin-top:10px; width:100%;">Enviar Solicitação</button>
+        <button id="voltarLoginBtn" class="btn btn-secondary" style="margin-top:10px; width:100%;">Voltar para Login</button>
+        <div id="cadastroErro" class="login-erro"></div>
+        <div id="cadastroSucesso" style="color: #10b981; text-align: center; margin-top: 10px; display: none;"></div>
+    </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
