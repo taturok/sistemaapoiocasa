@@ -1123,20 +1123,52 @@ function limparFormulario() {
   window._editarId = null;
 }
 
+// ================================================================
+// FUNÇÃO EDITAR JOVEM (CORRIGIDA)
+// ================================================================
 window.editarJovem = function(id) {
+  if (!id) {
+    alert('ID do jovem não fornecido.');
+    return;
+  }
+  
   const j = estado.jovens.find(x => x.id === id);
-  if(!j) return;
+  if (!j) {
+    alert('Jovem não encontrado.');
+    return;
+  }
+  
   window._editarId = id;
   
-  CAMPOS.forEach(([key]) => { const el = document.getElementById(`campo_${key}`); if (el) el.value = j[key] || ''; });
-  document.getElementById('campo_ID_DIGITAL').value = j['ID_DIGITAL'] || '';
+  // Preencher os campos do formulário
+  CAMPOS.forEach(([key]) => { 
+    const el = document.getElementById(`campo_${key}`); 
+    if (el) el.value = j[key] || ''; 
+  });
   
+  const digitalEl = document.getElementById('campo_ID_DIGITAL');
+  if (digitalEl) digitalEl.value = j['ID_DIGITAL'] || '';
+  
+  // Carregar ações LA se for o caso
   acoesLATemporarias = j.acoesLA || [];
   toggleAcoesLA();
   atualizarListaAcoesLAForm();
   
-  document.querySelector('#tab1').scrollIntoView({ behavior: 'smooth' });
-}
+  // Scroll para a aba de cadastro
+  const tabCadastro = document.getElementById('tab1');
+  if (tabCadastro) {
+    // Ativar a aba de cadastro
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    const btnCadastro = document.querySelector('.tab-btn[data-tab="tab1"]');
+    if (btnCadastro) btnCadastro.classList.add('active');
+    tabCadastro.classList.add('active');
+    tabCadastro.scrollIntoView({ behavior: 'smooth' });
+  }
+  
+  // Mostrar mensagem de confirmação
+  alert(`✏️ Editando jovem: ${j['NOME'] || 'Sem nome'}`);
+};
 
 // ================================================================
 // LISTA E FILTROS DE FREQUÊNCIA (COM CONTADOR)
@@ -1662,7 +1694,7 @@ function renderizarPlanejamentos() {
 }
 
 // ================================================================
-// CORREÇÃO: IMPRIMIR FICHA INDIVIDUAL (VERSÃO MELHORADA)
+// CORREÇÃO: IMPRIMIR FICHA INDIVIDUAL (VERSÃO OTIMIZADA PARA IMPRESSÃO)
 // ================================================================
 window.imprimirFichaIndividual = function() {
     const id = document.getElementById('selectJovemAcomp').value;
@@ -1691,7 +1723,7 @@ window.imprimirFichaIndividual = function() {
         logoBase64 = logoImg.src;
     }
     
-    // Gerar HTML da ficha para impressão
+    // Gerar HTML da ficha para impressão - OTIMIZADO PARA CABER EM PÁGINAS
     let html = `
     <!DOCTYPE html>
     <html>
@@ -1701,96 +1733,98 @@ window.imprimirFichaIndividual = function() {
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { 
                 font-family: 'Segoe UI', Arial, sans-serif; 
-                padding: 40px; 
+                padding: 20px; 
                 background: #f0f4f8;
                 color: #1e293b;
+                font-size: 11px;
             }
             .ficha-container {
                 max-width: 900px;
                 margin: 0 auto;
                 background: white;
-                border-radius: 16px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-                padding: 40px;
+                border-radius: 12px;
+                box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+                padding: 25px;
             }
             .header {
                 text-align: center;
-                margin-bottom: 30px;
-                padding-bottom: 20px;
-                border-bottom: 3px solid #2c3e66;
+                margin-bottom: 18px;
+                padding-bottom: 12px;
+                border-bottom: 2px solid #2c3e66;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                gap: 20px;
+                gap: 15px;
                 flex-wrap: wrap;
             }
             .header-logo {
-                max-height: 80px;
-                max-width: 150px;
+                max-height: 60px;
+                max-width: 120px;
                 object-fit: contain;
             }
             .header-text h1 {
                 color: #2c3e66;
-                font-size: 22px;
+                font-size: 18px;
                 font-weight: 700;
-                letter-spacing: 0.5px;
+                letter-spacing: 0.3px;
             }
             .header-text p {
                 color: #6b7280;
-                font-size: 13px;
-                margin-top: 4px;
+                font-size: 11px;
+                margin-top: 2px;
             }
             .header-text .data-impressao {
-                font-size: 11px;
+                font-size: 10px;
                 color: #94a3b8;
-                margin-top: 6px;
+                margin-top: 3px;
             }
             .section {
-                margin-bottom: 28px;
+                margin-bottom: 14px;
                 background: #fafcff;
-                border-radius: 12px;
-                padding: 20px;
+                border-radius: 8px;
+                padding: 12px 15px;
                 border: 1px solid #e9edf2;
+                page-break-inside: avoid;
             }
             .section-title {
                 color: #2c3e66;
-                font-size: 16px;
+                font-size: 13px;
                 font-weight: 700;
-                border-bottom: 2px solid #e2e8f0;
-                padding-bottom: 10px;
-                margin-bottom: 16px;
+                border-bottom: 1.5px solid #e2e8f0;
+                padding-bottom: 6px;
+                margin-bottom: 10px;
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                gap: 6px;
             }
             .grid-2col {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 6px 24px;
+                gap: 3px 18px;
             }
             .field {
-                padding: 6px 0;
+                padding: 3px 0;
                 border-bottom: 1px solid #f1f5f9;
             }
             .field-label {
-                font-size: 11px;
+                font-size: 9px;
                 text-transform: uppercase;
                 color: #6b7280;
                 font-weight: 600;
-                letter-spacing: 0.3px;
+                letter-spacing: 0.2px;
                 display: block;
             }
             .field-value {
-                font-size: 14px;
+                font-size: 11px;
                 color: #1e293b;
                 font-weight: 500;
-                margin-top: 1px;
+                margin-top: 0px;
             }
             .badge-status {
                 display: inline-block;
-                padding: 4px 14px;
-                border-radius: 20px;
-                font-size: 12px;
+                padding: 2px 10px;
+                border-radius: 12px;
+                font-size: 10px;
                 font-weight: 600;
             }
             .badge-ativo { background: #d1fae5; color: #065f46; }
@@ -1801,44 +1835,42 @@ window.imprimirFichaIndividual = function() {
             table {
                 width: 100%;
                 border-collapse: collapse;
-                font-size: 13px;
+                font-size: 10px;
             }
             thead th {
                 background: #f1f5f9;
                 color: #1e293b;
                 font-weight: 600;
-                padding: 10px 12px;
+                padding: 5px 8px;
                 text-align: left;
-                border-bottom: 2px solid #e2e8f0;
+                border-bottom: 1.5px solid #e2e8f0;
             }
             tbody td {
-                padding: 8px 12px;
+                padding: 4px 8px;
                 border-bottom: 1px solid #f1f5f9;
             }
-            tbody tr:hover {
-                background: #f8fafc;
-            }
             .acao-item {
-                padding: 8px 12px;
-                border-radius: 6px;
-                margin-bottom: 6px;
+                padding: 5px 10px;
+                border-radius: 4px;
+                margin-bottom: 4px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
+                font-size: 10px;
             }
             .acao-concluida {
                 background: #d1fae5;
-                border-left: 4px solid #10b981;
+                border-left: 3px solid #10b981;
             }
             .acao-pendente {
                 background: #fffbeb;
-                border-left: 4px solid #f59e0b;
+                border-left: 3px solid #f59e0b;
             }
             .acao-texto {
-                font-size: 14px;
+                font-size: 10px;
             }
             .acao-status {
-                font-size: 12px;
+                font-size: 10px;
                 font-weight: 600;
             }
             .acao-status.concluida { color: #065f46; }
@@ -1846,103 +1878,132 @@ window.imprimirFichaIndividual = function() {
             
             .obs-item {
                 background: #f8fafc;
-                padding: 10px 14px;
+                padding: 6px 10px;
                 border-left: 3px solid #8b5cf6;
-                margin-bottom: 8px;
-                border-radius: 4px;
+                margin-bottom: 4px;
+                border-radius: 3px;
+                font-size: 10px;
             }
             .obs-profissional {
                 font-weight: 600;
-                font-size: 13px;
+                font-size: 10px;
                 color: #1e293b;
             }
             .obs-data {
-                font-size: 11px;
+                font-size: 9px;
                 color: #94a3b8;
-                margin-left: 8px;
+                margin-left: 6px;
             }
             .obs-texto {
-                margin-top: 4px;
+                margin-top: 2px;
                 color: #475569;
-                font-size: 13px;
+                font-size: 10px;
             }
             .doc-item {
                 display: flex;
                 justify-content: space-between;
-                padding: 8px 12px;
+                padding: 4px 10px;
                 background: white;
-                border-radius: 6px;
+                border-radius: 4px;
                 border: 1px solid #e2e8f0;
-                margin-bottom: 6px;
+                margin-bottom: 4px;
+                font-size: 10px;
             }
             .doc-nome {
                 font-weight: 500;
-                font-size: 13px;
             }
             .doc-tipo {
-                font-size: 11px;
+                font-size: 9px;
                 color: #6b7280;
                 background: #f1f5f9;
-                padding: 2px 10px;
-                border-radius: 12px;
+                padding: 1px 8px;
+                border-radius: 10px;
             }
             .footer {
-                margin-top: 30px;
+                margin-top: 18px;
                 text-align: center;
-                padding-top: 20px;
+                padding-top: 12px;
                 border-top: 1px solid #e2e8f0;
                 color: #94a3b8;
-                font-size: 11px;
+                font-size: 9px;
             }
             .footer p {
-                margin: 2px 0;
+                margin: 1px 0;
             }
             .no-print {
                 text-align: center;
-                margin-top: 20px;
-                padding: 15px;
+                margin-top: 15px;
+                padding: 12px;
                 background: #f1f5f9;
-                border-radius: 8px;
+                border-radius: 6px;
             }
             .btn-print {
-                padding: 10px 30px;
+                padding: 8px 25px;
                 background: #2c3e66;
                 color: white;
                 border: none;
-                border-radius: 8px;
+                border-radius: 6px;
                 cursor: pointer;
                 font-weight: 600;
-                font-size: 14px;
-                transition: background 0.2s;
-            }
-            .btn-print:hover {
-                background: #1e2a4a;
+                font-size: 12px;
             }
             .btn-close {
-                padding: 10px 30px;
+                padding: 8px 25px;
                 background: #6c757d;
                 color: white;
                 border: none;
-                border-radius: 8px;
+                border-radius: 6px;
                 cursor: pointer;
                 font-weight: 600;
-                font-size: 14px;
-                margin-left: 10px;
-                transition: background 0.2s;
+                font-size: 12px;
+                margin-left: 8px;
             }
-            .btn-close:hover {
-                background: #5a6268;
+            .status-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .status-row .nome {
+                font-size: 16px;
+                font-weight: 700;
+                color: #2c3e66;
+            }
+            .info-badge {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 9px;
+                font-weight: 600;
+                background: #e2e8f0;
+                color: #475569;
+                margin-right: 4px;
+            }
+            .info-row {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-bottom: 6px;
+                font-size: 10px;
+                color: #6b7280;
+            }
+            .info-row span strong {
+                color: #1e293b;
             }
             @media print {
-                body { background: white; padding: 20px; }
-                .ficha-container { box-shadow: none; padding: 20px; border: 1px solid #ddd; }
+                body { background: white; padding: 10px; font-size: 10px; }
+                .ficha-container { box-shadow: none; padding: 15px; border: 1px solid #ddd; border-radius: 0; }
                 .no-print { display: none !important; }
-                .section { background: white; border-color: #ddd; }
+                .section { background: white; border-color: #ddd; page-break-inside: avoid; }
                 tbody tr:hover { background: transparent; }
+                .header { margin-bottom: 12px; padding-bottom: 8px; }
+                .section { margin-bottom: 10px; padding: 8px 12px; }
             }
             @media (max-width: 600px) {
                 .grid-2col { grid-template-columns: 1fr; }
-                .header { flex-direction: column; gap: 10px; }
+                .header { flex-direction: column; gap: 6px; }
             }
         </style>
     </head>
@@ -1952,8 +2013,8 @@ window.imprimirFichaIndividual = function() {
                 ${logoBase64 ? `<img src="${logoBase64}" alt="Logo" class="header-logo">` : ''}
                 <div class="header-text">
                     <h1>📋 Ficha Individual de Acompanhamento</h1>
-                    <p>Sistema de Controle de Medidas Socioeducativas</p>
-                    <p class="data-impressao">Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+                    <p>Medidas Socioeducativas - Sistema de Controle</p>
+                    <p class="data-impressao">Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
                 </div>
             </div>
     `;
@@ -1968,30 +2029,36 @@ window.imprimirFichaIndividual = function() {
     
     html += `
         <div class="section">
-            <div class="section-title">👤 Dados Pessoais</div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                <span style="font-size: 18px; font-weight: 700; color: #2c3e66;">${jovem['NOME'] || 'Sem nome'}</span>
+            <div class="status-row">
+                <span class="nome">${jovem['NOME'] || 'Sem nome'}</span>
                 <span class="badge-status ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="info-row">
+                <span><strong>Medida:</strong> ${jovem['MEDIDA'] || '-'}</span>
+                <span><strong>ID Digital:</strong> ${jovem['ID_DIGITAL'] || '-'}</span>
+                <span><strong>Idade:</strong> ${jovem['IDADE'] || '-'}</span>
+                <span><strong>CPF:</strong> ${jovem['CPF'] || '-'}</span>
             </div>
             <div class="grid-2col">
     `;
     
+    // Campos principais (excluindo alguns já exibidos)
+    const camposPrincipais = ['NOME DO RESPONSÁVEL','REINCIDÊNCIA','MESES','HORAS','PROTETIVA','NASC.','MÊS ANIVERSARIO','NATURALIDADE','GÊNERO','COR','COMPOSIÇÃO FAMILIAR','RENDA','BENEFICIO','PAA','ENDEREÇO','BAIRRO','TELEFONE','CRAS','UBS','ESTUDA?','SÉRIE','ESCOLA','TRABALHA?','FUNÇÃO','VINCULO','REDE','USO DE SPA?','QUAL?','PREFERE NOME SOCIAL?','QUAL NOME SOCIAL?'];
+    
     CAMPOS.forEach(([key, label]) => {
-        if (key === 'NOME') return; // Nome já exibido no cabeçalho
-        const valor = jovem[key] || '-';
-        html += `
-            <div class="field">
-                <span class="field-label">${label}</span>
-                <span class="field-value">${valor}</span>
-            </div>
-        `;
+        if (['NOME','MEDIDA','IDADE','CPF'].includes(key)) return;
+        if (camposPrincipais.includes(label)) {
+            const valor = jovem[key] || '-';
+            html += `
+                <div class="field">
+                    <span class="field-label">${label}</span>
+                    <span class="field-value">${valor}</span>
+                </div>
+            `;
+        }
     });
     
     html += `
-                <div class="field">
-                    <span class="field-label">ID Digital</span>
-                    <span class="field-value">${jovem['ID_DIGITAL'] || '-'}</span>
-                </div>
             </div>
         </div>
     `;
@@ -2005,24 +2072,24 @@ window.imprimirFichaIndividual = function() {
         html += `
             <div class="section">
                 <div class="section-title">⚖️ Liberdade Assistida - Ações/Compromissos</div>
-                <div style="display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap;">
-                    <span><strong>Progresso:</strong> ${concluidas}/${acoes.length} ações concluídas (${progresso}%)</span>
-                    ${jovem.profissionalLA ? `<span><strong>Técnico Responsável:</strong> ${estado.usuarios.find(u => u.id === jovem.profissionalLA)?.nome || 'Não encontrado'}</span>` : ''}
+                <div style="display: flex; gap: 15px; margin-bottom: 6px; flex-wrap: wrap; font-size: 10px;">
+                    <span><strong>Progresso:</strong> ${concluidas}/${acoes.length} ações (${progresso}%)</span>
+                    ${jovem.profissionalLA ? `<span><strong>Técnico:</strong> ${estado.usuarios.find(u => u.id === jovem.profissionalLA)?.nome || 'Não encontrado'}</span>` : ''}
                 </div>
-                <div style="margin-top: 8px;">
+                <div>
         `;
         
         if (acoes.length > 0) {
             acoes.forEach(a => {
                 html += `
                     <div class="acao-item ${a.realizado ? 'acao-concluida' : 'acao-pendente'}">
-                        <span class="acao-texto ${a.realizado ? 'text-decoration: line-through; color: #065f46;' : ''}">${a.texto}</span>
+                        <span class="acao-texto">${a.texto}</span>
                         <span class="acao-status ${a.realizado ? 'concluida' : 'pendente'}">${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}</span>
                     </div>
                 `;
             });
         } else {
-            html += `<p style="color: #6b7280;">Nenhuma ação cadastrada.</p>`;
+            html += `<p style="color: #6b7280; font-size: 10px;">Nenhuma ação cadastrada.</p>`;
         }
         
         html += `</div></div>`;
@@ -2036,11 +2103,10 @@ window.imprimirFichaIndividual = function() {
     html += `
         <div class="section">
             <div class="section-title">📊 Frequência</div>
-            <div style="display: flex; gap: 24px; margin-bottom: 12px; flex-wrap: wrap;">
-                <span><strong>Total de registros:</strong> ${hist.length}</span>
-                <span><strong>Total de horas:</strong> ${totalHoras.toFixed(1)}h</span>
-                <span><strong>Saldo restante:</strong> ${saldo}</span>
-                <span><strong>Medida:</strong> ${jovem['MEDIDA'] || '-'}</span>
+            <div style="display: flex; gap: 15px; margin-bottom: 6px; flex-wrap: wrap; font-size: 10px;">
+                <span><strong>Registros:</strong> ${hist.length}</span>
+                <span><strong>Total horas:</strong> ${totalHoras.toFixed(1)}h</span>
+                <span><strong>Saldo:</strong> ${saldo}</span>
             </div>
     `;
     
@@ -2049,25 +2115,31 @@ window.imprimirFichaIndividual = function() {
             <table>
                 <thead>
                     <tr>
-                        <th>Tipo</th>
-                        <th>Data/Hora</th>
-                        <th>Horas</th>
-                        <th>Observação</th>
+                        <th style="width:15%;">Tipo</th>
+                        <th style="width:30%;">Data/Hora</th>
+                        <th style="width:15%;">Horas</th>
+                        <th style="width:40%;">Observação</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
         
-        hist.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(h => {
+        // Mostrar apenas os últimos 15 registros para economizar espaço
+        const histMostrar = hist.length > 15 ? hist.slice(-15) : hist;
+        histMostrar.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(h => {
             const tipo = h.tipo === 'saida' ? '🚪 Saída' : '🚪 Entrada';
             const horas = h.tipo === 'saida' ? '-' : (parseFloat(h.horas || 0).toFixed(1) + 'h');
             const data = new Date(h.data).toLocaleDateString('pt-BR') + ' ' + new Date(h.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
             html += `<tr><td>${tipo}</td><td>${data}</td><td>${horas}</td><td>${h.observacao || '-'}</td></tr>`;
         });
         
+        if (hist.length > 15) {
+            html += `<tr><td colspan="4" style="text-align:center; color:#6b7280; font-style:italic;">... e mais ${hist.length - 15} registros</td></tr>`;
+        }
+        
         html += `</tbody></table>`;
     } else {
-        html += `<p style="color: #6b7280;">Nenhum registro de frequência encontrado.</p>`;
+        html += `<p style="color: #6b7280; font-size: 10px;">Nenhum registro de frequência encontrado.</p>`;
     }
     
     html += `</div>`;
@@ -2085,16 +2157,17 @@ window.imprimirFichaIndividual = function() {
             <table>
                 <thead>
                     <tr>
-                        <th>Data</th>
-                        <th>Período</th>
-                        <th>Conteúdo</th>
-                        <th>Benefício Social</th>
+                        <th style="width:20%;">Data</th>
+                        <th style="width:15%;">Período</th>
+                        <th style="width:50%;">Conteúdo</th>
+                        <th style="width:15%;">Benefício</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
         
-        oficinasParticipadas.sort((a, b) => new Date(b.data) - new Date(a.data)).forEach(o => {
+        const ofMostrar = oficinasParticipadas.length > 10 ? oficinasParticipadas.slice(-10) : oficinasParticipadas;
+        ofMostrar.sort((a, b) => new Date(b.data) - new Date(a.data)).forEach(o => {
             html += `
                 <tr>
                     <td>${new Date(o.data).toLocaleDateString('pt-BR')}</td>
@@ -2105,9 +2178,13 @@ window.imprimirFichaIndividual = function() {
             `;
         });
         
+        if (oficinasParticipadas.length > 10) {
+            html += `<tr><td colspan="4" style="text-align:center; color:#6b7280; font-style:italic;">... e mais ${oficinasParticipadas.length - 10} oficinas</td></tr>`;
+        }
+        
         html += `</tbody></table>`;
     } else {
-        html += `<p style="color: #6b7280;">Nenhuma oficina registrada.</p>`;
+        html += `<p style="color: #6b7280; font-size: 10px;">Nenhuma oficina registrada.</p>`;
     }
     
     html += `</div>`;
@@ -2117,11 +2194,11 @@ window.imprimirFichaIndividual = function() {
     
     html += `
         <div class="section">
-            <div class="section-title">📁 Documentos Anexados</div>
+            <div class="section-title">📁 Documentos</div>
     `;
     
     if (docs.length > 0) {
-        docs.forEach(d => {
+        docs.slice(0, 8).forEach(d => {
             html += `
                 <div class="doc-item">
                     <span class="doc-nome">📄 ${d.nome}</span>
@@ -2129,32 +2206,39 @@ window.imprimirFichaIndividual = function() {
                 </div>
             `;
         });
+        if (docs.length > 8) {
+            html += `<p style="color: #6b7280; font-size: 9px; margin-top: 3px;">+ ${docs.length - 8} documentos adicionais</p>`;
+        }
     } else {
-        html += `<p style="color: #6b7280;">Nenhum documento anexado.</p>`;
+        html += `<p style="color: #6b7280; font-size: 10px;">Nenhum documento anexado.</p>`;
     }
     
     html += `</div>`;
     
-    // === OBSERVAÇÕES ===
+    // === OBSERVAÇÕES (limitadas para não quebrar página) ===
     const obs = jovem.observacoes || [];
     
     html += `
-        <div class="section">
+        <div class="section" style="page-break-inside: avoid;">
             <div class="section-title">📝 Observações</div>
     `;
     
     if (obs.length > 0) {
-        obs.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(o => {
+        const obsMostrar = obs.length > 5 ? obs.slice(-5) : obs;
+        obsMostrar.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(o => {
             html += `
                 <div class="obs-item">
                     <span class="obs-profissional">${o.profissional || 'Sistema'}</span>
-                    <span class="obs-data">${new Date(o.data).toLocaleDateString('pt-BR')} ${new Date(o.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</span>
+                    <span class="obs-data">${new Date(o.data).toLocaleDateString('pt-BR')}</span>
                     <div class="obs-texto">${o.texto}</div>
                 </div>
             `;
         });
+        if (obs.length > 5) {
+            html += `<p style="color: #6b7280; font-size: 9px; margin-top: 3px;">+ ${obs.length - 5} observações adicionais</p>`;
+        }
     } else {
-        html += `<p style="color: #6b7280;">Nenhuma observação registrada.</p>`;
+        html += `<p style="color: #6b7280; font-size: 10px;">Nenhuma observação registrada.</p>`;
     }
     
     html += `</div>`;
@@ -2163,8 +2247,8 @@ window.imprimirFichaIndividual = function() {
     html += `
             <div class="footer">
                 <p>Documento gerado pelo Sistema de Controle de Medidas Socioeducativas</p>
-                <p>Este documento é de uso interno e deve ser tratado com confidencialidade</p>
-                <p style="margin-top: 4px; font-size: 10px;">${new Date().toLocaleString('pt-BR')}</p>
+                <p>Uso interno e confidencial</p>
+                <p style="margin-top: 2px; font-size: 8px;">${new Date().toLocaleString('pt-BR')}</p>
             </div>
             
             <div class="no-print">
@@ -2179,6 +2263,7 @@ window.imprimirFichaIndividual = function() {
     win.document.write(html);
     win.document.close();
 };
+
 // ================================================================
 // REMOVER DOCUMENTO
 // ================================================================
