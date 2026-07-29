@@ -923,7 +923,12 @@ function atualizarInterfaceCompleta() {
   renderizarCamposFormulario();
   carregarLista();
   renderizarDashboard();
-  renderizarProfissionais();
+  
+  // Verificar se a função renderizarProfissionais existe antes de chamar
+  if (typeof renderizarProfissionais === 'function') {
+    renderizarProfissionais();
+  }
+  
   renderizarOficinas();
   renderizarUsuarios();
   renderizarPendentes();
@@ -1124,50 +1129,62 @@ function limparFormulario() {
 }
 
 // ================================================================
-// FUNÇÃO EDITAR JOVEM (CORRIGIDA)
+// FUNÇÃO EDITAR JOVEM (CORRIGIDA - DEFINIDA COMO GLOBAL)
 // ================================================================
 window.editarJovem = function(id) {
-  if (!id) {
-    alert('ID do jovem não fornecido.');
-    return;
-  }
-  
-  const j = estado.jovens.find(x => x.id === id);
-  if (!j) {
-    alert('Jovem não encontrado.');
-    return;
-  }
-  
-  window._editarId = id;
-  
-  // Preencher os campos do formulário
-  CAMPOS.forEach(([key]) => { 
-    const el = document.getElementById(`campo_${key}`); 
-    if (el) el.value = j[key] || ''; 
-  });
-  
-  const digitalEl = document.getElementById('campo_ID_DIGITAL');
-  if (digitalEl) digitalEl.value = j['ID_DIGITAL'] || '';
-  
-  // Carregar ações LA se for o caso
-  acoesLATemporarias = j.acoesLA || [];
-  toggleAcoesLA();
-  atualizarListaAcoesLAForm();
-  
-  // Scroll para a aba de cadastro
-  const tabCadastro = document.getElementById('tab1');
-  if (tabCadastro) {
+    console.log('editarJovem chamado com id:', id);
+    
+    if (!id) {
+        alert('ID do jovem não fornecido.');
+        return;
+    }
+    
+    const j = estado.jovens.find(x => x.id === id);
+    if (!j) {
+        alert('Jovem não encontrado.');
+        return;
+    }
+    
+    console.log('Jovem encontrado:', j);
+    window._editarId = id;
+    
+    // Preencher os campos do formulário
+    CAMPOS.forEach(([key]) => { 
+        const el = document.getElementById(`campo_${key}`); 
+        if (el) {
+            el.value = j[key] || '';
+        }
+    });
+    
+    const digitalEl = document.getElementById('campo_ID_DIGITAL');
+    if (digitalEl) {
+        digitalEl.value = j['ID_DIGITAL'] || '';
+    }
+    
+    // Carregar ações LA se for o caso
+    acoesLATemporarias = j.acoesLA || [];
+    toggleAcoesLA();
+    atualizarListaAcoesLAForm();
+    
     // Ativar a aba de cadastro
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const tabsContainer = document.getElementById('tabsContainer');
+    if (tabsContainer) {
+        tabsContainer.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        const btnCadastro = tabsContainer.querySelector('.tab-btn[data-tab="tab1"]');
+        if (btnCadastro) {
+            btnCadastro.classList.add('active');
+        }
+    }
+    
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    const btnCadastro = document.querySelector('.tab-btn[data-tab="tab1"]');
-    if (btnCadastro) btnCadastro.classList.add('active');
-    tabCadastro.classList.add('active');
-    tabCadastro.scrollIntoView({ behavior: 'smooth' });
-  }
-  
-  // Mostrar mensagem de confirmação
-  alert(`✏️ Editando jovem: ${j['NOME'] || 'Sem nome'}`);
+    const tabCadastro = document.getElementById('tab1');
+    if (tabCadastro) {
+        tabCadastro.classList.add('active');
+        tabCadastro.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // Mostrar mensagem de confirmação
+    alert(`✏️ Editando jovem: ${j['NOME'] || 'Sem nome'}`);
 };
 
 // ================================================================
@@ -1595,6 +1612,66 @@ function exportarExcel() {
   const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Jovens');
   XLSX.writeFile(wb, `relatorio_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ================================================================
+// PROFISSIONAIS
+// ================================================================
+
+function renderizarProfissionais() {
+    const div = document.getElementById('listaProfissionais');
+    if (!div) return;
+    
+    div.innerHTML = estado.profissionais.map(p => `
+        <div class="profissional-item">
+            <div>
+                <strong>${p.nome || 'Sem nome'}</strong>
+                ${p.funcao ? `<span style="color:#6b7280; margin-left:8px;">${p.funcao}</span>` : ''}
+                ${p.registro ? `<span style="font-size:0.75rem; color:#6b7280; margin-left:8px;">Reg: ${p.registro}</span>` : ''}
+                ${p.numero ? `<span style="font-size:0.75rem; color:#6b7280; margin-left:8px;">Nº ${p.numero}</span>` : ''}
+            </div>
+            <div>
+                <button onclick="abrirModalExclusao('profissional', '${p.id}', '${p.nome}')" class="btn-acao btn-danger">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+    
+    if (estado.profissionais.length === 0) {
+        div.innerHTML = '<p style="color:#6b7280; text-align:center; padding:20px;">Nenhum profissional cadastrado.</p>';
+    }
+}
+
+async function salvarProfissional() {
+    const nome = document.getElementById('profNome').value.trim();
+    if (!nome) {
+        alert('Preencha o nome do profissional.');
+        return;
+    }
+    
+    const profissional = {
+        id: 'prof_' + Date.now(),
+        nome: nome,
+        funcao: document.getElementById('profFuncao').value.trim(),
+        registro: document.getElementById('profRegistro').value.trim(),
+        numero: document.getElementById('profNumero').value.trim()
+    };
+    
+    try {
+        await upstash('SET', `profissional:${profissional.id}`, JSON.stringify(profissional));
+        await upstash('SADD', 'profissionais:all', profissional.id);
+        estado.profissionais.push(profissional);
+        
+        // Limpar campos
+        document.getElementById('profNome').value = '';
+        document.getElementById('profFuncao').value = '';
+        document.getElementById('profRegistro').value = '';
+        document.getElementById('profNumero').value = '';
+        
+        renderizarProfissionais();
+        alert('Profissional salvo com sucesso!');
+    } catch (err) {
+        alert('Erro ao salvar profissional: ' + err.message);
+    }
 }
 
 // ================================================================
@@ -2382,6 +2459,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   document.getElementById('btnAlterarLogo')?.addEventListener('click', function() { document.getElementById('modalAlterarLogo').style.display = 'flex'; });
   document.getElementById('btnAlterarSenha')?.addEventListener('click', function() { document.getElementById('modalAlterarSenha').style.display = 'flex'; });
+  
+  // Adicionar evento para salvar profissional
+  document.getElementById('salvarProfissionalBtn')?.addEventListener('click', salvarProfissional);
 
   // Configurar atualização automática do contador quando os filtros mudarem
   document.getElementById('filtroNome')?.addEventListener('input', carregarLista);
