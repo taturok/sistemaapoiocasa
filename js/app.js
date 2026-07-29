@@ -135,7 +135,6 @@ async function fazerLogin() {
     if (!user) { document.getElementById('loginErro').textContent = 'E-mail ou senha incorretos.'; return; }
     if (user.status !== 'ativo') { document.getElementById('loginErro').textContent = 'Seu cadastro está pendente de aprovação.'; return; }
 
-    // VALIDAÇÃO DE HORÁRIO DE ACESSO
     if (!validarHorarioAcesso(user)) {
       document.getElementById('loginErro').textContent = '❌ Acesso bloqueado: Fora do horário de trabalho permitido.';
       return;
@@ -154,6 +153,13 @@ async function fazerLogin() {
     const btnLogo = document.getElementById('btnAlterarLogo');
     if (btnLogo) {
       btnLogo.style.display = (user.nivel === 'desenvolvedor' || user.nivel === 'admin' || user.nivel === 'gestor') ? '' : 'none';
+    }
+
+    // Mostrar horário atual e botão "Meu Horário"
+    mostrarHorarioAtual(user);
+    const btnMeusHorarios = document.getElementById('btnMeusHorarios');
+    if (btnMeusHorarios) {
+      btnMeusHorarios.style.display = (user.nivel === 'desenvolvedor' || user.nivel === 'admin' || user.nivel === 'gestor' || user.horariosConfigurados) ? '' : 'none';
     }
 
     carregarLogo();
@@ -196,6 +202,32 @@ function validarHorarioAcesso(user) {
   return true;
 }
 
+function mostrarHorarioAtual(user) {
+    const horarioSpan = document.getElementById('horarioAtual');
+    if (!horarioSpan) return;
+    
+    if (user.horariosConfigurados && user.horarios) {
+        const agora = new Date();
+        const diasSemana = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+        const diaHoje = diasSemana[agora.getDay()];
+        const configDia = user.horarios[diaHoje];
+        
+        if (configDia && configDia.ativo) {
+            const horaAtualStr = agora.getHours().toString().padStart(2,'0') + ':' + agora.getMinutes().toString().padStart(2,'0');
+            const dentroHorario = horaAtualStr >= configDia.inicio && horaAtualStr <= configDia.fim;
+            horarioSpan.style.display = 'inline';
+            horarioSpan.textContent = `🕐 ${configDia.inicio} - ${configDia.fim} ${dentroHorario ? '✅' : '🔴'}`;
+            horarioSpan.style.color = dentroHorario ? '#10b981' : '#ef4444';
+        } else {
+            horarioSpan.style.display = 'inline';
+            horarioSpan.textContent = '🔴 Hoje não é dia de trabalho';
+            horarioSpan.style.color = '#ef4444';
+        }
+    } else {
+        horarioSpan.style.display = 'none';
+    }
+}
+
 function iniciarMonitoramentoHorario(user) {
   if (intervaloCronometro) clearInterval(intervaloCronometro);
   if (user.nivel === 'desenvolvedor' || !user.horariosConfigurados) return;
@@ -230,6 +262,13 @@ function iniciarMonitoramentoHorario(user) {
       const m = Math.floor(minutosRestantes);
       const s = Math.floor((minutosRestantes - m) * 60);
       document.getElementById('cronometroTempo').textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+      
+      // Atualizar também o indicador de horário
+      const horarioSpan = document.getElementById('horarioAtual');
+      if (horarioSpan) {
+        horarioSpan.textContent = `⏳ ${m}m ${s}s restantes`;
+        horarioSpan.style.color = '#f59e0b';
+      }
     } else {
       divCronometroAtual.style.display = 'none';
     }
@@ -1985,11 +2024,15 @@ async function salvarNovoUsuario() {
 }
 
 // ================================================================
-// INICIALIZAÇÃO
+// EVENT LISTENERS E INICIALIZAÇÃO
 // ================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Injetar elementos dinâmicos
-  if (typeof injetarHTMLDinamico === 'function') injetarHTMLDinamico();
+  // Evento para abrir configuração de horários do próprio usuário
+  document.getElementById('btnMeusHorarios')?.addEventListener('click', function() {
+    if (estado.usuarioAtual) {
+      abrirModalHorarios(estado.usuarioAtual.id);
+    }
+  });
 
   document.getElementById('loginBtn')?.addEventListener('click', fazerLogin);
   document.getElementById('loginSenha')?.addEventListener('keypress', e => { if (e.key === 'Enter') fazerLogin(); });
