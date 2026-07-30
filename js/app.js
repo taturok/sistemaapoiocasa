@@ -101,9 +101,6 @@ function fileToBase64(file) {
 let intervaloCronometro = null;
 let pollingInterval = null;
 
-// ================================================================
-// VALIDAR HORÁRIO DE ACESSO
-// ================================================================
 function validarHorarioAcesso(user) {
     if (user.nivel === 'desenvolvedor' || user.nivel === 'admin') {
         return true;
@@ -799,7 +796,7 @@ window.editarJovem = function(id) {
 };
 
 // ================================================================
-// LISTA E FILTROS DE ACOMPANHAMENTO GERAL
+// LISTA E FILTROS DE ACOMPANHAMENTO GERAL (CORRIGIDO - BOTÃO DE PONTO)
 // ================================================================
 function carregarLista() {
     const tbody = document.getElementById('listaCorpo');
@@ -813,13 +810,16 @@ function carregarLista() {
     const fIdade = document.getElementById('filtroIdade')?.value;
 
     let lista = estado.jovens.filter(j => {
+        // Definir Status Renderizado
         if (j.status === 'suspenso') j._statusRender = 'suspenso';
         else if (j.status === 'descumprimento') j._statusRender = 'descumprimento';
         else if (j['MEDIDA'] === 'Liberação') j._statusRender = 'liberado';
         else {
-            j._statusRender = parseFloat(calcularSaldo(j)) <= 0 && j['MEDIDA'] !== 'LA' ? 'concluído' : 'ativo';
+            const saldo = parseFloat(calcularSaldo(j));
+            j._statusRender = saldo <= 0 && j['MEDIDA'] !== 'LA' ? 'concluído' : 'ativo';
         }
 
+        // Aplicar Filtros
         if (fNome && !(j['NOME']||'').toLowerCase().includes(fNome) && !(j['ID_DIGITAL']||'').includes(fNome)) return false;
         if (fMedida && j['MEDIDA'] !== fMedida) return false;
         if (fStatus && j._statusRender !== fStatus) return false;
@@ -854,8 +854,15 @@ function carregarLista() {
         const hoje = new Date();
         const hojeStr = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).getTime();
         let temEntradaAberta = false;
-        let podeRegistrarPonto = j['MEDIDA'] !== 'Liberação' && j._statusRender !== 'suspenso' && j._statusRender !== 'descumprimento' && (parseFloat(calcularSaldo(j)) > 0 || j['MEDIDA'] === 'LA');
+        
+        // Verifica se pode registrar ponto (ativo, não suspenso, não descumprimento)
+        const podeRegistrarPonto = j['MEDIDA'] !== 'Liberação' && 
+                                   j._statusRender !== 'suspenso' && 
+                                   j._statusRender !== 'descumprimento' && 
+                                   j._statusRender !== 'concluído' &&
+                                   (parseFloat(calcularSaldo(j)) > 0 || j['MEDIDA'] === 'LA');
 
+        // Verifica se tem entrada aberta hoje (apenas para medidas que não são LA)
         if (podeRegistrarPonto && j['MEDIDA'] !== 'LA') {
             for (let i = hist.length - 1; i >= 0; i--) {
                 if (hist[i].tipo === 'entrada') {
@@ -869,6 +876,7 @@ function carregarLista() {
             }
         }
 
+        // Botões de Status (Suspender/Reativar)
         let botoesStatus = '';
         if (podeAlterarStatus && j._statusRender !== 'concluído' && j['MEDIDA'] !== 'Liberação') {
             if (j._statusRender === 'suspenso') {
@@ -890,6 +898,12 @@ function carregarLista() {
             motivoStatus = `<span style="font-size:0.75rem; color:#991b1b;">14+ dias sem comparecer</span>`;
         }
 
+        // Botão de ponto (entrada/saída)
+        let botaoPonto = '';
+        if (podeRegistrarPonto && j['MEDIDA'] !== 'LA') {
+            botaoPonto = `<button onclick="registrarPontoNaLinha('${j.id}')" class="btn-acao ${temEntradaAberta ? 'btn-ponto-saida' : 'btn-ponto-entrada'}">${temEntradaAberta ? '🚪 Saída' : '🚪 Entrada'}</button>`;
+        }
+
         return `<tr>
             <td>${j['NOME'] || j['REFERENCIA'] || '-'}</td>
             <td>${j['ID_DIGITAL'] || '-'}</td>
@@ -900,7 +914,7 @@ function carregarLista() {
             <td>${motivoStatus}</td>
             <td>${ultimo}</td>
             <td>
-                ${podeRegistrarPonto && j['MEDIDA'] !== 'LA' ? `<button onclick="registrarPontoNaLinha('${j.id}')" class="btn-acao ${temEntradaAberta ? 'btn-ponto-saida' : 'btn-ponto-entrada'}">${temEntradaAberta ? '🚪 Saída' : '🚪 Entrada'}</button>` : ''}
+                ${botaoPonto}
                 <button onclick="editarJovem('${j.id}')" class="btn-acao btn-edit">✏️</button>
                 <button onclick="abrirFichaModal('${j.id}')" class="btn-acao btn-ficha">📋 Ficha</button>
                 ${botoesStatus}
@@ -1009,10 +1023,16 @@ window.salvarSuspensao = async function() {
   } catch (e) { alert('Erro ao suspender: ' + e.message); }
 }
 
+// ================================================================
+// REATIVAR JOVEM (CORRIGIDO)
+// ================================================================
 window.reativarJovem = async function(id) {
   if (!confirm('Tem certeza que deseja reativar este jovem?')) return;
   const jovem = estado.jovens.find(j => j.id === id);
-  if (!jovem) return;
+  if (!jovem) {
+    alert('Jovem não encontrado.');
+    return;
+  }
   
   const statusAnterior = jovem.status;
   jovem.status = 'ativo';
@@ -1029,6 +1049,7 @@ window.reativarJovem = async function(id) {
   
   try {
     await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
+    // Recarregar todos os dados para atualizar a lista
     await carregarTodosDados();
     alert('✅ Jovem reativado com sucesso!');
   } catch (err) {
@@ -1225,6 +1246,7 @@ window.registrarPontoNaLinha = async function(jovemId) {
   if (!jovem) return;
   if (jovem.status === 'suspenso') return alert('❌ Jovem está suspenso.');
   if (jovem.status === 'descumprimento') return alert('❌ Jovem está em descumprimento.');
+  if (jovem.status === 'concluído') return alert('❌ Jovem já concluiu a medida.');
   
   const now = new Date();
   jovem.historicoFrequencia = jovem.historicoFrequencia || [];
@@ -1272,22 +1294,40 @@ async function registrarPontoDigital() {
   if (jovem['MEDIDA'] === 'LA') return alert('Medida LA não registra ponto digital por horas.');
   if (jovem.status === 'suspenso') return alert('Jovem está suspenso.');
   if (jovem.status === 'descumprimento') return alert('Jovem está em descumprimento.');
+  if (jovem.status === 'concluído') return alert('Jovem já concluiu a medida.');
   
   await registrarPontoNaLinha(jovem.id);
   document.getElementById('inputDigital').value = '';
 }
 
 // ================================================================
-// REGISTRO MANUAL
+// REGISTRO MANUAL (CORRIGIDO)
 // ================================================================
 function abrirRegistroManual() {
   const select = document.getElementById('manualJovem');
   if (!select) return;
-  select.innerHTML = estado.jovens.filter(j => j['MEDIDA'] !== 'Liberação' && j['MEDIDA'] !== 'LA' && j.status !== 'suspenso' && j.status !== 'descumprimento')
-    .sort((a, b) => (a['NOME'] || '').localeCompare(b['NOME'] || '', 'pt-BR'))
-    .map(j => `<option value="${j.id}">${j['NOME'] || j['REFERENCIA']}</option>`).join('');
+  
+  // Filtrar jovens ativos (não suspensos, não descumprimento, não concluídos)
+  const jovensDisponiveis = estado.jovens.filter(j => 
+    j['MEDIDA'] !== 'Liberação' && 
+    j.status !== 'suspenso' && 
+    j.status !== 'descumprimento' &&
+    j.status !== 'concluído'
+  );
+  
+  if (jovensDisponiveis.length === 0) {
+    alert('Não há jovens disponíveis para registro manual.');
+    select.innerHTML = '<option value="">Nenhum jovem disponível</option>';
+  } else {
+    select.innerHTML = jovensDisponiveis
+      .sort((a, b) => (a['NOME'] || '').localeCompare(b['NOME'] || '', 'pt-BR'))
+      .map(j => `<option value="${j.id}">${j['NOME'] || j['REFERENCIA']} - ${j['MEDIDA'] || ''}</option>`)
+      .join('');
+  }
+  
   document.getElementById('modalRegistroManual').style.display = 'flex';
-  const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const now = new Date(); 
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   document.getElementById('manualDataHora').value = now.toISOString().slice(0, 16);
 }
 
@@ -1300,14 +1340,30 @@ async function salvarRegistroManual() {
 
   const jovem = estado.jovens.find(j => j.id === jovemId);
   if (!jovem) return;
+  
+  if (jovem.status === 'suspenso') return alert('❌ Jovem está suspenso.');
+  if (jovem.status === 'descumprimento') return alert('❌ Jovem está em descumprimento.');
+  if (jovem.status === 'concluído') return alert('❌ Jovem já concluiu a medida.');
+  
   jovem.historicoFrequencia = jovem.historicoFrequencia || [];
   
   const dataEntradaDate = new Date(dataEntrada);
-  jovem.historicoFrequencia.push({ data: dataEntradaDate.toISOString(), horas: horas, tipo: 'entrada', observacao: obs });
+  jovem.historicoFrequencia.push({ 
+    data: dataEntradaDate.toISOString(), 
+    horas: horas, 
+    tipo: 'entrada', 
+    observacao: obs || 'Registro manual'
+  });
 
   if (horas > 0) {
     const dataSaida = new Date(dataEntradaDate.getTime() + horas * 60 * 60 * 1000);
-    jovem.historicoFrequencia.push({ data: dataSaida.toISOString(), horas: 0, tipo: 'saida', observacao: '', entradaReferencia: dataEntradaDate.getTime() });
+    jovem.historicoFrequencia.push({ 
+      data: dataSaida.toISOString(), 
+      horas: 0, 
+      tipo: 'saida', 
+      observacao: '', 
+      entradaReferencia: dataEntradaDate.getTime() 
+    });
   }
 
   try {
@@ -1475,7 +1531,7 @@ async function salvarProfissional() {
 // ================================================================
 function renderizarJovensOficina() {
   const div = document.getElementById('listaJovensOficina'); if (!div) return;
-  const jovens = estado.jovens.filter(j => j['MEDIDA'] !== 'Liberação' && j.status !== 'suspenso' && j.status !== 'descumprimento')
+  const jovens = estado.jovens.filter(j => j['MEDIDA'] !== 'Liberação' && j.status !== 'suspenso' && j.status !== 'descumprimento' && j.status !== 'concluído')
     .sort((a, b) => (a['NOME'] || '').localeCompare(b['NOME'] || '', 'pt-BR'));
   div.innerHTML = jovens.map(j => `<label class="jovem-checkbox"><input type="checkbox" value="${j.id}"><span class="jovem-nome">${j['NOME'] || j['REFERENCIA']}</span></label>`).join('');
 }
@@ -1501,7 +1557,7 @@ async function salvarOficina() {
     if (abateHoras) {
       for (const jId of jovensPresentes) {
         const j = estado.jovens.find(x => x.id === jId);
-        if (j && j['MEDIDA'] !== 'LA') {
+        if (j && j['MEDIDA'] !== 'LA' && j.status !== 'concluído') {
           j.historicoFrequencia = j.historicoFrequencia || [];
           j.historicoFrequencia.push({ 
             data: new Date().toISOString(), 
@@ -1700,7 +1756,7 @@ window.renderizarRelatorios = function() {
     const agora = new Date();
     const HORAS_POR_QUINZENA = 8; 
     let saldos = estado.jovens
-      .filter(j => j['MEDIDA'] && j['MEDIDA'] !== 'Liberação' && j['MEDIDA'] !== 'LA' && j.status !== 'suspenso' && j.status !== 'descumprimento')
+      .filter(j => j['MEDIDA'] && j['MEDIDA'] !== 'Liberação' && j['MEDIDA'] !== 'LA' && j.status !== 'suspenso' && j.status !== 'descumprimento' && j.status !== 'concluído')
       .map(j => {
         const horasTotal = parseNum(j['HORAS']);
         const horasFeitas = (j.historicoFrequencia || []).reduce((s, h) => s + parseNum(h.horas), 0);
@@ -1732,7 +1788,7 @@ window.renderizarRelatorios = function() {
   const tbody2 = document.querySelector('#tabelaAniversariantes tbody');
   if (tbody2) {
     const agora = new Date(); const anoAtual = agora.getFullYear(); const mesAtual = agora.getMonth();
-    const aniversariantes = estado.jovens.filter(j => j['MEDIDA'] !== 'Liberação').map(j => {
+    const aniversariantes = estado.jovens.filter(j => j['MEDIDA'] !== 'Liberação' && j.status !== 'concluído').map(j => {
       const nascStr = j['NASC.']; if (!nascStr) return null; const nasc = new Date(nascStr); if (isNaN(nasc.getTime())) return null;
       const mesNasc = nasc.getMonth(); const diaNasc = nasc.getDate() + 1;
       let mesTarget = mesNasc; let anoTarget = anoAtual; if (mesNasc < mesAtual || (mesNasc === mesAtual && diaNasc < agora.getDate())) anoTarget = anoAtual + 1;
@@ -1744,7 +1800,7 @@ window.renderizarRelatorios = function() {
 }
 
 // ================================================================
-// USUÁRIOS E APROVAÇÕES (CORRIGIDO - COM BOTÃO DE HORÁRIOS)
+// USUÁRIOS E APROVAÇÕES
 // ================================================================
 async function cadastrarUsuario() {
   const nome = document.getElementById('cadastroNome').value.trim();
@@ -1830,7 +1886,7 @@ async function salvarVinculoJovem() {
 }
 
 // ================================================================
-// RENDERIZAR USUÁRIOS (CORRIGIDO - COM BOTÃO DE HORÁRIOS)
+// RENDERIZAR USUÁRIOS (COM BOTÃO DE HORÁRIOS)
 // ================================================================
 function renderizarUsuarios() {
   const tbody = document.getElementById('listaUsuarios');
@@ -1847,8 +1903,6 @@ function renderizarUsuarios() {
   
   const podeConfigurarHorarios = ['gestor', 'desenvolvedor', 'admin'].includes(usuarioAtual.nivel);
   
-  console.log('Renderizando usuários. Usuário atual:', usuarioAtual.nivel, 'Pode configurar horários:', podeConfigurarHorarios);
-  
   const usuariosAtivos = estado.usuarios.filter(u => u.status === 'ativo');
   
   if (usuariosAtivos.length === 0) {
@@ -1861,7 +1915,6 @@ function renderizarUsuarios() {
     const isDesenvolvedor = u.nivel === 'desenvolvedor' || u.nivel === 'admin';
     const isProprioUsuario = u.id === usuarioAtual.id;
     
-    // Botão de horários
     let botoesHorarios = '';
     if (podeConfigurarHorarios) {
       if (isProprioUsuario) {
@@ -1873,8 +1926,7 @@ function renderizarUsuarios() {
       }
     }
     
-    // Botão de excluir
-    const podeExcluir = NIVEIS_COM_STATUS.includes(usuarioAtual.nivel) && !isProprioUsuario;
+    const podeExcluir = NIVEIS_COM_STATUS.includes(usuarioAtual.nivel) && !isProprioUsuario && !isDesenvolvedor;
     const botaoExcluir = podeExcluir ? `<button onclick="abrirModalExclusao('usuario', '${u.id}', '${u.nome}')" class="btn-acao btn-danger" style="font-size:0.7rem;">🗑️</button>` : '';
     
     return `
@@ -1898,8 +1950,6 @@ function renderizarUsuarios() {
 // HORÁRIOS DE ACESSO - CONFIGURAÇÃO
 // ================================================================
 window.abrirModalHorarios = function(id) {
-  console.log('Abrindo modal de horários para usuário:', id);
-  
   const u = estado.usuarios.find(x => x.id === id);
   if (!u) {
     alert('Usuário não encontrado.');
@@ -2130,7 +2180,6 @@ async function salvarLogo() {
 // EVENT LISTENERS E INICIALIZAÇÃO
 // ================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Evento para abrir configuração de horários do próprio usuário
   document.getElementById('btnMeusHorarios')?.addEventListener('click', function() {
     if (estado.usuarioAtual) {
       abrirModalHorarios(estado.usuarioAtual.id);
@@ -2172,13 +2221,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('salvarProfissionalBtn')?.addEventListener('click', salvarProfissional);
   document.getElementById('userSalvarBtn')?.addEventListener('click', salvarNovoUsuario);
 
-  // Configurar atualização automática dos filtros
   document.querySelectorAll('#filtrosFrequencia select, #filtrosFrequencia input').forEach(el => {
     el?.addEventListener('change', carregarLista);
     el?.addEventListener('input', carregarLista);
   });
 
-  // Busca rápida
   document.getElementById('buscaFrequencia')?.addEventListener('input', function() {
     const filtroNome = document.getElementById('filtroNome');
     if (filtroNome) {
@@ -2373,9 +2420,6 @@ window.salvarDocumento = async function() {
     }
 };
 
-// ================================================================
-// FUNÇÕES DE INJEÇÃO HTML DINÂMICA (placeholder)
-// ================================================================
 function injetarHTMLDinamico() {}
 
 function iniciarPolling() {
