@@ -801,7 +801,69 @@ window.editarJovem = function(id) {
 };
 
 // ================================================================
-// LISTA E FILTROS DE ACOMPANHAMENTO GERAL
+// FUNÇÃO PARA ALTERAR STATUS MANUALMENTE (CORRIGIDA)
+// ================================================================
+window.alterarStatusManual = async function(jovemId, novoStatus) {
+    if (!NIVEIS_COM_STATUS.includes(estado.usuarioAtual?.nivel)) {
+        alert('❌ Você não tem permissão para alterar status.');
+        return;
+    }
+    
+    const jovem = estado.jovens.find(j => j.id === jovemId);
+    if (!jovem) {
+        alert('Jovem não encontrado.');
+        return;
+    }
+    
+    const statusPermitidos = ['ativo', 'suspenso', 'descumprimento', 'concluído'];
+    if (!statusPermitidos.includes(novoStatus)) {
+        alert('Status inválido.');
+        return;
+    }
+    
+    if (!confirm(`Tem certeza que deseja alterar o status de ${jovem['NOME']} de "${jovem.status}" para "${novoStatus}"?`)) {
+        return;
+    }
+    
+    const statusAnterior = jovem.status;
+    jovem.status = novoStatus;
+    
+    if (novoStatus === 'suspenso') {
+        const motivo = prompt('Digite o motivo da suspensão:');
+        if (motivo) {
+            jovem.motivoSuspensao = motivo;
+            jovem.dataSuspensao = new Date().toISOString();
+            jovem.suspensoPor = estado.usuarioAtual?.nome || 'Sistema';
+        } else {
+            alert('Motivo obrigatório para suspensão.');
+            return;
+        }
+    } else if (novoStatus === 'descumprimento') {
+        jovem.dataDescumprimento = new Date().toISOString();
+    } else if (novoStatus === 'ativo') {
+        jovem.motivoSuspensao = '';
+        jovem.dataSuspensao = '';
+        jovem.dataDescumprimento = '';
+    }
+    
+    if (!jovem.observacoes) jovem.observacoes = [];
+    jovem.observacoes.push({
+        data: new Date().toISOString(),
+        profissional: estado.usuarioAtual?.nome || 'Sistema',
+        texto: `📌 Status alterado manualmente de "${statusAnterior}" para "${novoStatus.toUpperCase()}"${jovem.motivoSuspensao ? ' - Motivo: ' + jovem.motivoSuspensao : ''}`
+    });
+    
+    try {
+        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
+        await carregarTodosDados();
+        alert(`✅ Status alterado para "${novoStatus.toUpperCase()}" com sucesso!`);
+    } catch (err) {
+        alert('Erro ao alterar status: ' + err.message);
+    }
+};
+
+// ================================================================
+// LISTA E FILTROS DE ACOMPANHAMENTO GERAL (CORRIGIDO)
 // ================================================================
 function carregarLista() {
     const tbody = document.getElementById('listaCorpo');
@@ -815,14 +877,17 @@ function carregarLista() {
     const fIdade = document.getElementById('filtroIdade')?.value;
 
     let lista = estado.jovens.filter(j => {
+        // Definir Status Renderizado baseado no status real
         if (j.status === 'suspenso') j._statusRender = 'suspenso';
         else if (j.status === 'descumprimento') j._statusRender = 'descumprimento';
         else if (j.status === 'concluído') j._statusRender = 'concluído';
         else if (j['MEDIDA'] === 'Liberação') j._statusRender = 'liberado';
         else {
-            j._statusRender = parseFloat(calcularSaldo(j)) <= 0 && j['MEDIDA'] !== 'LA' ? 'concluído' : 'ativo';
+            // Se não tem status definido ou é 'ativo'
+            j._statusRender = j.status || 'ativo';
         }
 
+        // Aplicar Filtros
         if (fNome && !(j['NOME']||'').toLowerCase().includes(fNome) && !(j['ID_DIGITAL']||'').includes(fNome)) return false;
         if (fMedida && j['MEDIDA'] !== fMedida) return false;
         if (fStatus && j._statusRender !== fStatus) return false;
@@ -858,11 +923,12 @@ function carregarLista() {
         const hoje = new Date();
         const hojeStr = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).getTime();
         let temEntradaAberta = false;
-        let podeRegistrarPonto = j['MEDIDA'] !== 'Liberação' && 
-                                j._statusRender !== 'suspenso' && 
-                                j._statusRender !== 'descumprimento' && 
-                                j._statusRender !== 'concluído' &&
-                                (parseFloat(calcularSaldo(j)) > 0 || j['MEDIDA'] === 'LA');
+        
+        // PERMITE REGISTRAR PONTO PARA TODOS EXCETO SUSPENSOS, CONCLUÍDOS E LIBERADOS
+        // Inclui descumprimento (pois ao registrar ponto, ele será reativado)
+        const podeRegistrarPonto = j['MEDIDA'] !== 'Liberação' && 
+                                   j._statusRender !== 'suspenso' && 
+                                   j._statusRender !== 'concluído';
 
         if (podeRegistrarPonto && j['MEDIDA'] !== 'LA') {
             for (let i = hist.length - 1; i >= 0; i--) {
@@ -877,6 +943,7 @@ function carregarLista() {
             }
         }
 
+        // Botões de Status (Suspender/Reativar)
         let botoesStatus = '';
         if (podeAlterarStatus && j._statusRender !== 'concluído' && j['MEDIDA'] !== 'Liberação') {
             if (j._statusRender === 'suspenso') {
@@ -891,6 +958,18 @@ function carregarLista() {
             }
         }
 
+        // Botão para ALTERAR STATUS MANUALMENTE (dropdown)
+        let botoesAlterarStatus = '';
+        if (podeAlterarStatus && j._statusRender !== 'concluído' && j['MEDIDA'] !== 'Liberação') {
+            const opcoes = ['ativo', 'suspenso', 'descumprimento', 'concluído'];
+            botoesAlterarStatus = `
+                <select onchange="alterarStatusManual('${j.id}', this.value)" style="padding:2px 6px; font-size:0.7rem; border:1px solid #d1d9e6; border-radius:4px; background:white;">
+                    <option value="">Status</option>
+                    ${opcoes.map(s => `<option value="${s}" ${j._statusRender === s ? 'selected' : ''}>${s.toUpperCase()}</option>`).join('')}
+                </select>
+            `;
+        }
+
         let motivoStatus = '';
         if (j._statusRender === 'suspenso' && j.motivoSuspensao) {
             motivoStatus = `<span title="${j.motivoSuspensao}" style="cursor:help; font-size:0.75rem; color:#be185d;">${j.motivoSuspensao.substring(0, 20)}${j.motivoSuspensao.length > 20 ? '...' : ''}</span>`;
@@ -898,6 +977,7 @@ function carregarLista() {
             motivoStatus = `<span style="font-size:0.75rem; color:#991b1b;">14+ dias sem comparecer</span>`;
         }
 
+        // Botão de ponto (entrada/saída) - aparece para todos que podem registrar
         let botaoPonto = '';
         if (podeRegistrarPonto) {
             botaoPonto = `<button onclick="registrarPontoNaLinha('${j.id}')" class="btn-acao ${temEntradaAberta ? 'btn-ponto-saida' : 'btn-ponto-entrada'}">${temEntradaAberta ? '🚪 Saída' : '🚪 Entrada'}</button>`;
@@ -917,6 +997,7 @@ function carregarLista() {
                 <button onclick="editarJovem('${j.id}')" class="btn-acao btn-edit">✏️</button>
                 <button onclick="abrirFichaModal('${j.id}')" class="btn-acao btn-ficha">📋 Ficha</button>
                 ${botoesStatus}
+                ${botoesAlterarStatus}
                 <button onclick="abrirModalExclusao('jovem', '${j.id}', '${j['NOME']}')" class="btn-acao btn-danger">🗑️</button>
             </td>
         </tr>`;
@@ -1088,7 +1169,7 @@ window.renderizarAcompanhamento = function() {
   if (!tabela7 || !tabela14) return;
   
   const semComparecimento = estado.jovens.filter(j => { 
-    if (j['MEDIDA'] === 'Liberação' || j.status === 'suspenso') return false; 
+    if (j['MEDIDA'] === 'Liberação' || j.status === 'suspenso' || j.status === 'concluído') return false; 
     const hist = j.historicoFrequencia || []; 
     if (hist.length === 0) return true; 
     const ultimo = new Date(Math.max(...hist.map(h => new Date(h.data)))); 
@@ -1232,14 +1313,28 @@ function popularSelectAcompInd() {
 }
 
 // ================================================================
-// PONTO DIGITAL E NA LINHA
+// PONTO DIGITAL E NA LINHA (CORRIGIDO - REATIVA DESCUMPRIMENTO)
 // ================================================================
 window.registrarPontoNaLinha = async function(jovemId) {
   const jovem = estado.jovens.find(j => j.id === jovemId);
   if (!jovem) return;
+  
+  if (jovem['MEDIDA'] === 'Liberação') return alert('❌ Jovem está liberado.');
   if (jovem.status === 'suspenso') return alert('❌ Jovem está suspenso.');
-  if (jovem.status === 'descumprimento') return alert('❌ Jovem está em descumprimento.');
   if (jovem.status === 'concluído') return alert('❌ Jovem já concluiu a medida.');
+  
+  // Se estiver em descumprimento, reativa automaticamente
+  if (jovem.status === 'descumprimento') {
+      jovem.status = 'ativo';
+      jovem.dataDescumprimento = '';
+      if (!jovem.observacoes) jovem.observacoes = [];
+      jovem.observacoes.push({
+          data: new Date().toISOString(),
+          profissional: estado.usuarioAtual?.nome || 'Sistema',
+          texto: '✅ Jovem reativado automaticamente ao registrar presença.'
+      });
+      await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
+  }
   
   const now = new Date();
   jovem.historicoFrequencia = jovem.historicoFrequencia || [];
@@ -1291,15 +1386,15 @@ async function registrarPontoDigital() {
   const jovem = estado.jovens.find(j => j['ID_DIGITAL'] === id);
   if (!jovem) return alert('Código não encontrado.');
   if (jovem.status === 'suspenso') return alert('Jovem está suspenso.');
-  if (jovem.status === 'descumprimento') return alert('Jovem está em descumprimento.');
   if (jovem.status === 'concluído') return alert('Jovem já concluiu a medida.');
+  if (jovem['MEDIDA'] === 'Liberação') return alert('Jovem está liberado.');
   
   await registrarPontoNaLinha(jovem.id);
   document.getElementById('inputDigital').value = '';
 }
 
 // ================================================================
-// REGISTRO MANUAL
+// REGISTRO MANUAL (CORRIGIDO)
 // ================================================================
 function abrirRegistroManual() {
   const select = document.getElementById('manualJovem');
@@ -1308,7 +1403,6 @@ function abrirRegistroManual() {
   const jovensDisponiveis = estado.jovens.filter(j => 
     j['MEDIDA'] !== 'Liberação' && 
     j.status !== 'suspenso' && 
-    j.status !== 'descumprimento' &&
     j.status !== 'concluído'
   );
   
@@ -1339,7 +1433,6 @@ async function salvarRegistroManual() {
   if (!jovem) return;
   
   if (jovem.status === 'suspenso') return alert('❌ Jovem está suspenso.');
-  if (jovem.status === 'descumprimento') return alert('❌ Jovem está em descumprimento.');
   if (jovem.status === 'concluído') return alert('❌ Jovem já concluiu a medida.');
   if (jovem['MEDIDA'] === 'Liberação') return alert('❌ Jovem está liberado.');
   
@@ -1403,7 +1496,7 @@ async function salvarRegistroManual() {
 }
 
 // ================================================================
-// IMPORTAR PLANILHA (VERSÃO COMPLETA E CORRIGIDA)
+// IMPORTAR PLANILHA (VERSÃO SIMPLIFICADA - SEM RECONHECIMENTO DE CORES)
 // ================================================================
 async function importarPlanilha() {
   const input = document.createElement('input');
@@ -1419,207 +1512,42 @@ async function importarPlanilha() {
 
     try {
       const data = await file.arrayBuffer();
-      const wb = XLSX.read(data, { cellStyles: true, type: 'array' });
+      const wb = XLSX.read(data, { cellStyles: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '' });
+
+      // Mapeamento de colunas
+      const colMap = {};
+      const headers = Object.keys(rows[0] || {});
       
-      // Converter para array de objetos mantendo todas as colunas
-      const rows = XLSX.utils.sheet_to_json(ws, { 
-        raw: false, 
-        defval: '',
-        header: 'A'
+      headers.forEach(h => {
+        const hNorm = h.toUpperCase().replace(/\s/g, '').replace(/[ÀÁÂÃÄÅ]/g,'A').replace(/[ÈÉÊË]/g,'E').replace(/[ÌÍÎÏ]/g,'I').replace(/[ÒÓÔÕÖ]/g,'O').replace(/[ÙÚÛÜ]/g,'U').replace(/Ç/g,'C');
+        for (const [key] of CAMPOS) {
+          const kNorm = key.toUpperCase().replace(/\s/g, '').replace(/[ÀÁÂÃÄÅ]/g,'A').replace(/[ÈÉÊË]/g,'E').replace(/[ÌÍÎÏ]/g,'I').replace(/[ÒÓÔÕÖ]/g,'O').replace(/[ÙÚÛÜ]/g,'U').replace(/Ç/g,'C');
+          if (hNorm.includes(kNorm) || kNorm.includes(hNorm)) { 
+            colMap[key] = h; 
+            break; 
+          }
+        }
+        if (hNorm.includes('ID') && hNorm.includes('DIGITAL')) colMap['ID_DIGITAL'] = h;
+        if (hNorm === 'REFERENCIA' || hNorm.includes('REFERENCIA')) colMap['REFERENCIA'] = h;
       });
-      
-      // Obter cabeçalhos da primeira linha
-      const headers = rows[0] || {};
-      const dataRows = rows.slice(1).filter(row => {
-        // Filtrar linhas vazias
-        return Object.values(row).some(val => val && val.toString().trim() !== '');
-      });
 
-      // ================================================================
-      // MAPEAMENTO DE CORES PARA STATUS (CORRETO)
-      // ================================================================
-      function determinarStatusPorCor(corHex) {
-        if (!corHex) return null;
-        
-        const cor = corHex.toUpperCase().replace('#', '');
-        
-        // VERDE ESCURO → Concluído (Medida Finalizada)
-        const coresVerdeEscuro = ['008000', '006400', '2E8B57', '1E8B3C', '0B6623', '228B22', '006633', '009933', '006600', '004D00'];
-        if (coresVerdeEscuro.some(c => cor === c || cor.includes(c) || c.includes(cor))) {
-          return 'concluído';
-        }
-        
-        // VERDE CLARO → Ativo (Regular)
-        const coresVerdeClaro = ['90EE90', '98FB98', '7CFC00', '32CD32', 'ADFF2F', '00FF00', '00CC00', '66FF66', '33CC33', '00DD00'];
-        if (coresVerdeClaro.some(c => cor === c || cor.includes(c) || c.includes(cor))) {
-          return 'ativo';
-        }
-        
-        // ROSA/MAGENTA → Suspenso (Irregular)
-        const coresRosa = ['FF69B4', 'FF1493', 'FF6EB4', 'FFB6C1', 'FFC0CB', 'FF007F', 'E75480', 'FF3399', 'CC0066', 'FF66B2'];
-        if (coresRosa.some(c => cor === c || cor.includes(c) || c.includes(cor))) {
-          return 'suspenso';
-        }
-        
-        // VERMELHO → Descumprimento
-        const coresVermelho = ['FF0000', 'DC143C', 'FF6347', 'FF4500', 'CC0000', 'B22222', '8B0000', 'FF2400', 'FF0033', 'EE0000'];
-        if (coresVermelho.some(c => cor === c || cor.includes(c) || c.includes(cor))) {
-          return 'descumprimento';
-        }
-        
-        // AZUL → Liberado
-        const coresAzul = ['0000FF', '4169E1', '1E90FF', '00BFFF', '0066CC', '003399', '0000CD', '4A90D9'];
-        if (coresAzul.some(c => cor === c || cor.includes(c) || c.includes(cor))) {
-          return 'liberado';
-        }
-        
-        return null;
-      }
-
-      function getCellColor(cellAddress) {
-        const cell = ws[cellAddress];
-        if (!cell) return null;
-        
-        if (cell.s && cell.s.fgColor) {
-          const color = cell.s.fgColor;
-          if (color.rgb) {
-            return color.rgb.toUpperCase();
-          }
-          if (color.theme !== undefined) {
-            const themeColors = {
-              0: '000000', 1: 'FFFFFF', 2: 'FF0000', 3: '00FF00', 
-              4: '0000FF', 5: 'FFFF00', 6: 'FF00FF', 7: '00FFFF',
-              8: '800000', 9: '008000', 10: '000080', 11: '808000',
-              12: '800080', 13: '008080', 14: 'C0C0C0', 15: '808080'
-            };
-            return themeColors[color.theme] || null;
-          }
-          if (color.indexed !== undefined) {
-            const indexedColors = [
-              '000000', 'FFFFFF', 'FF0000', '00FF00', '0000FF', 'FFFF00', 'FF00FF', '00FFFF',
-              '000000', 'FFFFFF', 'FF0000', '00FF00', '0000FF', 'FFFF00', 'FF00FF', '00FFFF',
-              '800000', '008000', '000080', '808000', '800080', '008080', 'C0C0C0', '808080',
-              '9999FF', '993366', 'FFFFCC', 'CCFFFF', '660066', 'FF8080', '0066CC', 'CCCCFF',
-              '000080', 'FF00FF', 'FFFF00', '00FFFF', '800080', '800000', '008080', '0000FF'
-            ];
-            return indexedColors[color.indexed] || null;
-          }
-        }
-        return null;
-      }
-
-      // ================================================================
-      // MAPEAR COLUNAS
-      // ================================================================
-      // Encontrar índices das colunas pelos cabeçalhos
-      function findColumnIndex(headerNames) {
-        for (const h of Object.keys(headers)) {
-          const hVal = String(headers[h] || '').toUpperCase().trim();
-          for (const name of headerNames) {
-            const nameUpper = name.toUpperCase().trim();
-            if (hVal === nameUpper || hVal.includes(nameUpper) || nameUpper.includes(hVal)) {
-              return h;
-            }
-          }
-        }
-        return null;
-      }
-
-      // Mapear colunas
-      const colMap = {
-        REFERENCIA: findColumnIndex(['REFERENCIA', 'REF']),
-        NOME: findColumnIndex(['NOME', 'NOME COMPLETO', 'NOME DO ADOLESCENTE']),
-        RESPONSAVEL: findColumnIndex(['NOME DO RESPONSÁVEL', 'RESPONSÁVEL']),
-        REINCIDENCIA: findColumnIndex(['REINCIDÊNCIA', 'REINCIDENCIA']),
-        MEDIDA: findColumnIndex(['MEDIDA', 'MSE', 'TIPO DE MEDIDA']),
-        MESES: findColumnIndex(['MESES']),
-        HORAS: findColumnIndex(['HORAS', 'TOTAL HORAS']),
-        PROTETIVA: findColumnIndex(['PROTETIVA']),
-        NASCIMENTO: findColumnIndex(['NASC.', 'NASCIMENTO', 'DATA NASC']),
-        NATURALIDADE: findColumnIndex(['NATURALIDADE']),
-        IDADE: findColumnIndex(['IDADE']),
-        GENERO: findColumnIndex(['GÊNERO', 'GENERO']),
-        COR: findColumnIndex(['COR']),
-        CPF: findColumnIndex(['CPF']),
-        TELEFONE: findColumnIndex(['TELEFONE', 'TEL']),
-        ENDERECO: findColumnIndex(['ENDEREÇO', 'ENDERECO']),
-        BAIRRO: findColumnIndex(['BAIRRO']),
-        ESCOLA: findColumnIndex(['ESCOLA']),
-        SERIE: findColumnIndex(['SÉRIE', 'SERIE']),
-        ESTUDA: findColumnIndex(['ESTUDA?', 'ESTUDA']),
-        TRABALHA: findColumnIndex(['TRABALHA?', 'TRABALHA']),
-        FUNCAO: findColumnIndex(['FUNÇÃO', 'FUNCAO']),
-        USO_SPA: findColumnIndex(['USO DE SPA?', 'USO DE SPA']),
-        QUAL_SPA: findColumnIndex(['QUAL?', 'QUAL']),
-        NOME_SOCIAL: findColumnIndex(['QUAL NOME SOCIAL?', 'NOME SOCIAL', 'NOME SOCIAL?'])
-      };
-
-      // Mapear campos do sistema para as colunas
-      const campoParaColuna = {
-        'REFERENCIA': colMap.REFERENCIA,
-        'NOME': colMap.NOME,
-        'NOME DO RESPONSÁVEL': colMap.RESPONSAVEL,
-        'REINCIDÊNCIA': colMap.REINCIDENCIA,
-        'MEDIDA': colMap.MEDIDA,
-        'MESES': colMap.MESES,
-        'HORAS': colMap.HORAS,
-        'PROTETIVA': colMap.PROTETIVA,
-        'NASC.': colMap.NASCIMENTO,
-        'NATURALIDADE': colMap.NATURALIDADE,
-        'IDADE': colMap.IDADE,
-        'GÊNERO': colMap.GENERO,
-        'COR': colMap.COR,
-        'CPF': colMap.CPF,
-        'TELEFONE': colMap.TELEFONE,
-        'ENDEREÇO': colMap.ENDERECO,
-        'BAIRRO': colMap.BAIRRO,
-        'ESCOLA': colMap.ESCOLA,
-        'SÉRIE': colMap.SERIE,
-        'ESTUDA?': colMap.ESTUDA,
-        'TRABALHA?': colMap.TRABALHA,
-        'FUNÇÃO': colMap.FUNCAO,
-        'USO DE SPA?': colMap.USO_SPA,
-        'QUAL?': colMap.QUAL_SPA,
-        'QUAL NOME SOCIAL?': colMap.NOME_SOCIAL
-      };
+      const colNome = colMap['NOME'] || 'NOME';
 
       let importados = 0;
       let atualizados = 0;
-      let statusPorCor = 0;
       let erros = 0;
       let ignorados = 0;
-      let linhasProcessadas = 0;
 
-      // ================================================================
-      // PROCESSAR CADA LINHA
-      // ================================================================
-      for (let rowIndex = 0; rowIndex < dataRows.length; rowIndex++) {
-        const row = dataRows[rowIndex];
-        linhasProcessadas++;
-        
+      for (const row of rows) {
         try {
-          // Obter nome
-          let nome = '';
-          if (colMap.NOME && row[colMap.NOME]) {
-            nome = String(row[colMap.NOME]).trim();
-          }
-          
-          // Se não encontrou nome, tentar outras colunas
-          if (!nome) {
-            // Tentar coluna A (primeira coluna)
-            if (row['A']) nome = String(row['A']).trim();
-            // Tentar coluna B
-            if (!nome && row['B']) nome = String(row['B']).trim();
-          }
-          
-          // Pular linhas sem nome
-          if (!nome) {
+          const nome = row[colNome] || '';
+          if (!nome || nome === 'undefined' || nome === '') {
             ignorados++;
             continue;
           }
           
-          // Pular linhas que são cabeçalhos ou legendas
           const nomeUpper = nome.toUpperCase().trim();
           if (nomeUpper.includes('NOVOS ADOLESCENTES') || 
               nomeUpper.includes('REGULAR') || 
@@ -1627,75 +1555,29 @@ async function importarPlanilha() {
               nomeUpper.includes('EM DESCUMPRIMENTO') ||
               nomeUpper.includes('CÓDIGOS FAMILIARES') ||
               nomeUpper.includes('PACTUAÇÃO') ||
-              nomeUpper.includes('MEDIDA FINALIZADA') ||
-              nomeUpper.includes('LEGENDA') ||
-              nomeUpper.includes('TOTAL') ||
-              nomeUpper === 'NOME' ||
-              nomeUpper === 'REFERENCIA') {
+              nomeUpper.includes('MEDIDA FINALIZADA')) {
             ignorados++;
             continue;
           }
 
-          // ================================================================
-          // OBTER COR DA LINHA
-          // ================================================================
-          let corCelula = null;
-          let statusDetectado = null;
-          
-          try {
-            // Tentar obter cor da coluna NOME
-            let colIndex = -1;
-            if (colMap.NOME) {
-              // Encontrar o índice da coluna
-              const headerKeys = Object.keys(headers);
-              for (let i = 0; i < headerKeys.length; i++) {
-                if (headerKeys[i] === colMap.NOME) {
-                  colIndex = i;
-                  break;
-                }
-              }
-            }
-            
-            if (colIndex === -1 && row['A']) {
-              // Tentar com a primeira coluna
-              colIndex = 0;
-            }
-            
-            if (colIndex !== -1) {
-              // +2 porque rowIndex começa em 0 e temos cabeçalho
-              const cellRef = XLSX.utils.encode_cell({ r: rowIndex + 2, c: colIndex });
-              const corHex = getCellColor(cellRef);
-              if (corHex) {
-                corCelula = corHex;
-                statusDetectado = determinarStatusPorCor(corHex);
-              }
-            }
-          } catch (e) {
-            // Se não conseguir obter a cor, continuar
+          const medida = row[colMap['MEDIDA']] || row['MEDIDA'] || '';
+          if (!medida && !nome) {
+            ignorados++;
+            continue;
           }
 
-          // ================================================================
-          // BUSCAR JOVEM EXISTENTE
-          // ================================================================
+          const cpfPlanilha = String(row[colMap['CPF']] || row['CPF'] || '').replace(/\D/g, '');
+          
           let jovemExistente = null;
           
-          // Buscar CPF
-          let cpfPlanilha = '';
-          if (colMap.CPF && row[colMap.CPF]) {
-            cpfPlanilha = String(row[colMap.CPF]).replace(/\D/g, '');
-          }
-          
-          // Tentar por CPF
           if (cpfPlanilha && cpfPlanilha.length >= 11) {
             jovemExistente = estado.jovens.find(j => (j['CPF'] || '').replace(/\D/g, '') === cpfPlanilha);
           }
           
-          // Tentar por NOME
           if (!jovemExistente) {
             jovemExistente = estado.jovens.find(j => (j['NOME'] || '').toUpperCase().trim() === nome.toUpperCase().trim());
           }
           
-          // Tentar por NOME (contém)
           if (!jovemExistente) {
             const nomeBusca = nome.toUpperCase().trim();
             jovemExistente = estado.jovens.find(j => {
@@ -1704,98 +1586,57 @@ async function importarPlanilha() {
             });
           }
 
-          // ================================================================
-          // CRIAR/ATUALIZAR JOVEM
-          // ================================================================
-          const dadosJovem = {};
-          
-          // Preencher campos
-          for (const [campo, coluna] of Object.entries(campoParaColuna)) {
-            if (coluna && row[coluna] !== undefined && row[coluna] !== '') {
-              let valor = String(row[coluna]).trim();
-              
-              // Tratar campos especiais
-              if (campo === 'GÊNERO') {
-                if (valor.toUpperCase().includes('MASC')) valor = 'M';
-                else if (valor.toUpperCase().includes('FEM')) valor = 'F';
-                else if (valor.toUpperCase().includes('NÃO BINÁRIO') || valor.toUpperCase().includes('NB')) valor = 'NB';
-              }
-              if ((campo === 'HORAS' || campo === 'MESES') && valor) {
-                valor = parseFloat(String(valor).replace(',', '.')) || 0;
-              }
-              if (campo === 'IDADE' && valor) {
-                valor = parseInt(valor) || 0;
-              }
-              
-              dadosJovem[campo] = valor;
-            }
-          }
-          
-          // Definir NOME
-          dadosJovem['NOME'] = nome;
-          
-          // ID Digital
-          if (colMap.ID_DIGITAL && row[colMap.ID_DIGITAL]) {
-            dadosJovem['ID_DIGITAL'] = String(row[colMap.ID_DIGITAL]).trim();
-          }
-
           if (jovemExistente) {
-            // ================================================================
-            // ATUALIZAR JOVEM EXISTENTE
-            // ================================================================
             const jovemId = jovemExistente.id;
             
-            // Preservar dados importantes
             const historicoFrequencia = jovemExistente.historicoFrequencia || [];
             const observacoes = jovemExistente.observacoes || [];
             const documentos = jovemExistente.documentos || [];
             const acoesLA = jovemExistente.acoesLA || [];
             const profissionalLA = jovemExistente.profissionalLA || '';
             
-            // Criar objeto atualizado
             const jovemAtualizado = { 
               id: jovemId, 
               profissionalLA: profissionalLA,
               historicoFrequencia: historicoFrequencia,
               observacoes: observacoes,
               documentos: documentos,
-              acoesLA: acoesLA
+              acoesLA: acoesLA,
+              status: jovemExistente.status || 'ativo'
             };
             
-            // Copiar dados da planilha
-            for (const [key, value] of Object.entries(dadosJovem)) {
-              jovemAtualizado[key] = value;
-            }
-            
-            // Manter campos que não vieram da planilha
-            for (const [key] of CAMPOS) {
-              if (!jovemAtualizado[key] && jovemExistente[key] !== undefined) {
-                jovemAtualizado[key] = jovemExistente[key];
+            CAMPOS.forEach(([key]) => {
+              const colName = colMap[key];
+              let valor = '';
+              
+              if (colName && row[colName] !== undefined && row[colName] !== '') {
+                valor = String(row[colName] || '').trim();
+              } else if (row[key] !== undefined && row[key] !== '') {
+                valor = String(row[key] || '').trim();
+              } else if (jovemExistente[key] !== undefined) {
+                valor = jovemExistente[key];
               }
-            }
-            
-            // ================================================================
-            // APLICAR STATUS DETECTADO PELA COR
-            // ================================================================
-            if (statusDetectado) {
-              if (jovemAtualizado.status !== statusDetectado) {
-                jovemAtualizado.status = statusDetectado;
-                if (!jovemAtualizado.observacoes) jovemAtualizado.observacoes = [];
-                jovemAtualizado.observacoes.push({
-                  data: new Date().toISOString(),
-                  profissional: 'Sistema (Importação)',
-                  texto: `📌 Status alterado para "${statusDetectado.toUpperCase()}" baseado na cor da planilha (${corCelula || 'cor detectada'})`
-                });
-                statusPorCor++;
+              
+              if (key === 'GÊNERO' && valor) {
+                if (valor.toUpperCase().includes('MASC')) valor = 'M';
+                else if (valor.toUpperCase().includes('FEM')) valor = 'F';
+                else if (valor.toUpperCase().includes('NÃO BINÁRIO') || valor.toUpperCase().includes('NB')) valor = 'NB';
               }
-            } else if (!jovemAtualizado.status) {
-              jovemAtualizado.status = jovemExistente.status || 'ativo';
-            }
+              if ((key === 'HORAS' || key === 'MESES') && valor) {
+                valor = parseFloat(String(valor).replace(',', '.')) || 0;
+              }
+              if (key === 'IDADE' && valor) {
+                valor = parseInt(valor) || 0;
+              }
+              
+              jovemAtualizado[key] = valor;
+            });
             
-            // Salvar
+            jovemAtualizado['ID_DIGITAL'] = String(row[colMap['ID_DIGITAL']] || row['ID DIGITAL'] || jovemExistente['ID_DIGITAL'] || '').trim();
+            jovemAtualizado['REFERENCIA'] = String(row[colMap['REFERENCIA']] || row['REFERENCIA'] || jovemExistente['REFERENCIA'] || '').trim();
+            
             await upstash('SET', `jovem:${jovemId}`, JSON.stringify(jovemAtualizado));
             
-            // Atualizar no estado
             const index = estado.jovens.findIndex(j => j.id === jovemId);
             if (index !== -1) {
               estado.jovens[index] = jovemAtualizado;
@@ -1804,44 +1645,52 @@ async function importarPlanilha() {
             atualizados++;
             
           } else {
-            // ================================================================
-            // CRIAR NOVO JOVEM
-            // ================================================================
             const novoId = 'j_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             const novoJovem = { 
               id: novoId, 
-              status: statusDetectado || 'ativo',
+              status: 'ativo',
               historicoFrequencia: [],
               observacoes: [],
               documentos: [],
               acoesLA: []
             };
             
-            // Copiar dados da planilha
-            for (const [key, value] of Object.entries(dadosJovem)) {
-              novoJovem[key] = value;
-            }
+            CAMPOS.forEach(([key]) => {
+              const colName = colMap[key];
+              let valor = '';
+              
+              if (colName && row[colName] !== undefined && row[colName] !== '') {
+                valor = String(row[colName] || '').trim();
+              } else if (row[key] !== undefined && row[key] !== '') {
+                valor = String(row[key] || '').trim();
+              }
+              
+              if (key === 'GÊNERO' && valor) {
+                if (valor.toUpperCase().includes('MASC')) valor = 'M';
+                else if (valor.toUpperCase().includes('FEM')) valor = 'F';
+                else if (valor.toUpperCase().includes('NÃO BINÁRIO') || valor.toUpperCase().includes('NB')) valor = 'NB';
+              }
+              if ((key === 'HORAS' || key === 'MESES') && valor) {
+                valor = parseFloat(String(valor).replace(',', '.')) || 0;
+              }
+              if (key === 'IDADE' && valor) {
+                valor = parseInt(valor) || 0;
+              }
+              
+              novoJovem[key] = valor;
+            });
             
-            // Preencher campos vazios
-            for (const [key] of CAMPOS) {
-              if (!novoJovem[key]) novoJovem[key] = '';
-            }
+            novoJovem['ID_DIGITAL'] = String(row[colMap['ID_DIGITAL']] || row['ID DIGITAL'] || '').trim();
+            novoJovem['REFERENCIA'] = String(row[colMap['REFERENCIA']] || row['REFERENCIA'] || '').trim();
             
-            // Status por cor
-            if (statusDetectado) {
-              novoJovem.observacoes.push({
-                data: new Date().toISOString(),
-                profissional: 'Sistema (Importação)',
-                texto: `📌 Status definido como "${statusDetectado.toUpperCase()}" baseado na cor da planilha (${corCelula || 'cor detectada'})`
-              });
-              statusPorCor++;
+            if (novoJovem['NOME']) {
+              await upstash('SET', `jovem:${novoId}`, JSON.stringify(novoJovem));
+              await upstash('SADD', 'jovens:all', novoId);
+              estado.jovens.push(novoJovem);
+              importados++;
+            } else {
+              ignorados++;
             }
-            
-            // Salvar
-            await upstash('SET', `jovem:${novoId}`, JSON.stringify(novoJovem));
-            await upstash('SADD', 'jovens:all', novoId);
-            estado.jovens.push(novoJovem);
-            importados++;
           }
           
         } catch (rowError) {
@@ -1850,18 +1699,13 @@ async function importarPlanilha() {
         }
       }
 
-      // ================================================================
-      // FINALIZAR
-      // ================================================================
       await carregarTodosDados();
       
       let mensagem = `✅ Importação concluída!`;
       if (importados > 0) mensagem += ` ${importados} novos adicionados.`;
       if (atualizados > 0) mensagem += ` ${atualizados} atualizados.`;
-      if (statusPorCor > 0) mensagem += ` ${statusPorCor} status definidos por cor.`;
       if (ignorados > 0) mensagem += ` ${ignorados} linhas ignoradas.`;
       if (erros > 0) mensagem += ` ⚠️ ${erros} erros.`;
-      mensagem += ` Total de linhas processadas: ${linhasProcessadas}`;
       
       statusDiv.style.background = '#d1fae5';
       statusDiv.style.color = '#065f46';
@@ -1876,6 +1720,27 @@ async function importarPlanilha() {
   };
   input.click();
 }
+
+// ================================================================
+// EXPORTAR EXCEL
+// ================================================================
+function exportarExcel() {
+  const data = estado.jovens.map(j => ({
+    Nome: j['NOME'] || j['REFERENCIA'], 
+    Digital: j['ID_DIGITAL'], 
+    Idade: j['IDADE'], 
+    Medida: j['MEDIDA'],
+    Saldo: calcularSaldo(j), 
+    Status: j.status || 'ativo',
+    Motivo: j.motivoSuspensao || '',
+    Frequências: (j.historicoFrequencia || []).length,
+    'Ações LA': (j.acoesLA || []).filter(a => a.realizado).length + '/' + (j.acoesLA || []).length
+  }));
+  const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Jovens');
+  XLSX.writeFile(wb, `relatorio_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 // ================================================================
 // PROFISSIONAIS
 // ================================================================
@@ -2366,7 +2231,6 @@ function renderizarUsuarios() {
     const isDesenvolvedor = u.nivel === 'desenvolvedor' || u.nivel === 'admin';
     const isProprioUsuario = u.id === usuarioAtual.id;
     
-    // Botão de horários
     let botoesHorarios = '';
     if (podeConfigurarHorarios) {
       if (isProprioUsuario) {
@@ -2378,7 +2242,6 @@ function renderizarUsuarios() {
       }
     }
     
-    // Botão de alterar nível
     let botoesNivel = '';
     if (podeAlterarNivel && !isProprioUsuario && !isDesenvolvedor) {
       const niveis = ['gestor', 'tecnico', 'oficineiro', 'autoridade', 'jovem'];
@@ -2390,7 +2253,6 @@ function renderizarUsuarios() {
       `;
     }
     
-    // Botão de excluir
     const podeExcluir = NIVEIS_COM_STATUS.includes(usuarioAtual.nivel) && !isProprioUsuario;
     const botaoExcluir = podeExcluir ? `<button onclick="abrirModalExclusao('usuario', '${u.id}', '${u.nome}')" class="btn-acao btn-danger" style="font-size:0.7rem;">🗑️</button>` : '';
     
