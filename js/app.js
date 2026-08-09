@@ -1,15 +1,14 @@
 // ============================================================
 // SISTEMA DE CONTROLE DE MEDIDAS SOCIOEDUCATIVAS v3.0
 // BACKEND: UPSTASH REDIS REST API
-// JS COMPLETO – REESTRUTURADO E OTIMIZADO
+// JS COMPLETO – CORRIGIDO PARA IMPORTAÇÃO PERFEITA
 // ============================================================
 
 // ============================================================
-// CONFIGURAÇÃO UPSTASH – Credenciais ofuscadas
+// CONFIGURAÇÃO UPSTASH
 // ============================================================
 const UPSTASH_URL = 'https://enhanced-lobster-167489.upstash.io';
 const UPSTASH_TOKEN = (() => {
-    // Ofuscação simples para não expor diretamente
     const parts = ['gQAAAAAAAo5B', 'AAIgcDI0NjUx', 'NzdjMzdiYzg0YTBl', 'OTFkZWZjY2Y0MGI5YjQ1YQ'];
     return parts.join('');
 })();
@@ -29,43 +28,24 @@ const NIVEIS_ACESSO = {
 const NIVEIS_COM_STATUS = ['desenvolvedor', 'admin', 'gestor', 'tecnico'];
 
 // ============================================================
-// CAMPOS DO FORMULÁRIO (mesmo padrão da planilha)
+// CAMPOS DO FORMULÁRIO
 // ============================================================
 const CAMPOS = [
-    ['REFERENCIA','REFERÊNCIA','text'],
-    ['NOME','NOME','text'],
-    ['NOME DO RESPONSÁVEL','RESPONSÁVEL','text'],
+    ['REFERENCIA','REFERÊNCIA','text'],['NOME','NOME','text'],['NOME DO RESPONSÁVEL','RESPONSÁVEL','text'],
     ['REINCIDÊNCIA','REINCIDÊNCIA','text'],
     ['MEDIDA','MEDIDA','select', [['','Selecione...'],['LA','LA - Liberdade Assistida'],['PSC','PSC - Prestação de Serviço'],['Internação','Internação'],['Liberação','Liberação']]],
-    ['MESES','MESES','text'],
-    ['HORAS','HORAS','number'],
-    ['PROTETIVA','PROTETIVA','text'],
-    ['NASC.','NASCIMENTO','date'],
-    ['MÊS ANIVERSARIO','MÊS ANIVER.','text'],
-    ['NATURALIDADE','NATURALIDADE','text'],
-    ['IDADE','IDADE','number'],
-    ['GÊNERO','GÊNERO','select',[['','Selecione...'],['M','Masculino'],['F','Feminino'],['NB','Não-binário']]],
+    ['MESES','MESES','text'],['HORAS','HORAS','number'],['PROTETIVA','PROTETIVA','text'],['NASC.','NASCIMENTO','date'],
+    ['MÊS ANIVERSARIO','MÊS ANIVER.','text'],['NATURALIDADE','NATURALIDADE','text'],
+    ['IDADE','IDADE','number'],['GÊNERO','GÊNERO','select',[['','Selecione...'],['M','Masculino'],['F','Feminino'],['NB','Não-binário']]],
     ['COR','COR','select',[['','Selecione...'],['Branca','Branca'],['Preta','Preta'],['Parda','Parda'],['Amarela','Amarela'],['Indígena','Indígena']]],
-    ['COMPOSIÇÃO FAMILIAR','COMPOSIÇÃO FAMILIAR','text'],
-    ['RENDA','RENDA','text'],
-    ['BENEFICIO','BENEFÍCIO','text'],
-    ['PAA','PAA','text'],
-    ['ENDEREÇO','ENDEREÇO','text'],
-    ['BAIRRO','BAIRRO','text'],
-    ['TELEFONE','TELEFONE','text'],
-    ['CRAS','CRAS','text'],
-    ['UBS','UBS','text'],
-    ['CPF','CPF','text'],
-    ['ESTUDA?','ESTUDA?','select',[['',''],['Sim','Sim'],['Não','Não']]],
-    ['SÉRIE','SÉRIE','text'],
-    ['ESCOLA','ESCOLA','text'],
-    ['TRABALHA?','TRABALHA?','select',[['',''],['Sim','Sim'],['Não','Não']]],
-    ['FUNÇÃO','FUNÇÃO','text'],
-    ['VINCULO','VÍNCULO','text'],
-    ['REDE','REDE','text'],
+    ['COMPOSIÇÃO FAMILIAR','COMPOSIÇÃO FAMILIAR','text'],['RENDA','RENDA','text'],
+    ['BENEFICIO','BENEFÍCIO','text'],['PAA','PAA','text'],['ENDEREÇO','ENDEREÇO','text'],
+    ['BAIRRO','BAIRRO','text'],['TELEFONE','TELEFONE','text'],['CRAS','CRAS','text'],
+    ['UBS','UBS','text'],['CPF','CPF','text'],['ESTUDA?','ESTUDA?','select',[['',''],['Sim','Sim'],['Não','Não']]],
+    ['SÉRIE','SÉRIE','text'],['ESCOLA','ESCOLA','text'],['TRABALHA?','TRABALHA?','select',[['',''],['Sim','Sim'],['Não','Não']]],
+    ['FUNÇÃO','FUNÇÃO','text'],['VINCULO','VÍNCULO','text'],['REDE','REDE','text'],
     ['USO DE SPA?','USO DE SPA?','select',[['',''],['Sim','Sim'],['Não','Não']]],
-    ['QUAL?','QUAL?','text'],
-    ['PREFERE NOME SOCIAL?','NOME SOCIAL?','select',[['',''],['Sim','Sim'],['Não','Não']]],
+    ['QUAL?','QUAL?','text'],['PREFERE NOME SOCIAL?','NOME SOCIAL?','select',[['',''],['Sim','Sim'],['Não','Não']]],
     ['QUAL NOME SOCIAL?','NOME SOCIAL','text'],
     ['HORAS_CUMPRIDAS','Horas Cumpridas','number'],
     ['SALDO','Saldo de Horas','number']
@@ -98,7 +78,7 @@ const estado = {
 let pollingInterval = null;
 
 // ============================================================
-// UPSTASH HELPERS (com retry)
+// UPSTASH HELPERS
 // ============================================================
 async function upstash(cmd, ...args) {
     const encodedArgs = args.map(a => encodeURIComponent(String(a)));
@@ -160,9 +140,16 @@ function calcularHorasCumpridas(jovem) {
 
 function parseDataBrasil(valor) {
     if (!valor) return '';
+    
+    // Se já é uma data válida no formato ISO
     let data = new Date(valor);
-    if (!isNaN(data.getTime()) && valor.toString().includes('-')) return data.toISOString().split('T')[0];
+    if (!isNaN(data.getTime()) && valor.toString().includes('-')) {
+        return data.toISOString().split('T')[0];
+    }
+    
     let strValor = String(valor).trim();
+    
+    // Formato: DD/MM/AAAA ou DD/MM/AA
     let match = strValor.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
     if (match) {
         let dia = parseInt(match[1]), mes = parseInt(match[2])-1, ano = parseInt(match[3]);
@@ -170,14 +157,34 @@ function parseDataBrasil(valor) {
         data = new Date(ano, mes, dia);
         if (!isNaN(data.getTime())) return data.toISOString().split('T')[0];
     }
+    
+    // Formato: DD/MMAAAA (ex: 20/012011)
     match = strValor.match(/^(\d{1,2})[\/\-\.]?(\d{2})(\d{4})$/);
     if (match) {
         let dia = parseInt(match[1]), mes = parseInt(match[2])-1, ano = parseInt(match[3]);
         data = new Date(ano, mes, dia);
         if (!isNaN(data.getTime())) return data.toISOString().split('T')[0];
     }
+    
+    // Formato: AAAA-MM-DD
+    match = strValor.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+    if (match) {
+        let ano = parseInt(match[1]), mes = parseInt(match[2])-1, dia = parseInt(match[3]);
+        data = new Date(ano, mes, dia);
+        if (!isNaN(data.getTime())) return data.toISOString().split('T')[0];
+    }
+    
+    // Excel serial date
+    if (typeof valor === 'number' && valor > 10000) {
+        data = new Date((valor - 25569) * 86400 * 1000);
+        if (!isNaN(data.getTime())) return data.toISOString().split('T')[0];
+    }
+    
+    // Tentar new Date direto
     data = new Date(strValor);
     if (!isNaN(data.getTime())) return data.toISOString().split('T')[0];
+    
+    console.log(`⚠️ Não foi possível converter a data: "${strValor}"`);
     return '';
 }
 
@@ -190,43 +197,20 @@ function navigateTo(pageId) {
     if (target) target.classList.add('active');
     
     const titles = {
-        'pageDashboard':'Dashboard',
-        'pageCadastro':'Cadastrar / Editar Jovem',
-        'pageLista':'Lista Geral',
-        'pageAcompInd':'Acompanhamento Individual',
-        'pageObservacoes':'Observações',
-        'pageOficinas':'Oficinas Realizadas',
-        'pagePlanejamento':'Planejamento de Oficinas',
-        'pageRelatorios':'Relatórios',
-        'pageLA':'Ações LA',
-        'pageUsuarios':'Gerenciar Usuários',
-        'pagePendentes':'Solicitações Pendentes',
-        'pageMensagens':'Mensagens',
-        'pageProfissionais':'Profissionais',
-        'pageConfig':'Configurações',
-        'pageDashboardJovem':'Minhas Ações'
+        'pageDashboard':'Dashboard','pageCadastro':'Cadastrar / Editar Jovem','pageLista':'Lista Geral',
+        'pageAcompInd':'Acompanhamento Individual','pageObservacoes':'Observações','pageOficinas':'Oficinas Realizadas',
+        'pagePlanejamento':'Planejamento de Oficinas','pageRelatorios':'Relatórios','pageLA':'Ações LA',
+        'pageUsuarios':'Gerenciar Usuários','pagePendentes':'Solicitações Pendentes','pageMensagens':'Mensagens',
+        'pageProfissionais':'Profissionais','pageConfig':'Configurações','pageDashboardJovem':'Minhas Ações'
     };
     const icons = {
-        'pageDashboard':'chart-pie',
-        'pageCadastro':'user-plus',
-        'pageLista':'list-ul',
-        'pageAcompInd':'user-circle',
-        'pageObservacoes':'eye',
-        'pageOficinas':'tools',
-        'pagePlanejamento':'calendar-plus',
-        'pageRelatorios':'file-alt',
-        'pageLA':'handshake',
-        'pageUsuarios':'users-cog',
-        'pagePendentes':'user-clock',
-        'pageMensagens':'envelope',
-        'pageProfissionais':'user-md',
-        'pageConfig':'cog',
-        'pageDashboardJovem':'user'
+        'pageDashboard':'chart-pie','pageCadastro':'user-plus','pageLista':'list-ul','pageAcompInd':'user-circle',
+        'pageObservacoes':'eye','pageOficinas':'tools','pagePlanejamento':'calendar-plus','pageRelatorios':'file-alt',
+        'pageLA':'handshake','pageUsuarios':'users-cog','pagePendentes':'user-clock','pageMensagens':'envelope',
+        'pageProfissionais':'user-md','pageConfig':'cog','pageDashboardJovem':'user'
     };
     const titleEl = document.getElementById('pageTitle');
-    if (titleEl && titles[pageId]) {
-        titleEl.innerHTML = `<i class="fas fa-${icons[pageId] || 'circle'}"></i> ${titles[pageId]}`;
-    }
+    if (titleEl && titles[pageId]) titleEl.innerHTML = `<i class="fas fa-${icons[pageId] || 'circle'}"></i> ${titles[pageId]}`;
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     const activeItem = document.querySelector(`.nav-item[data-page="${pageId}"]`);
     if (activeItem) activeItem.classList.add('active');
@@ -465,122 +449,51 @@ function renderizarDashboard() {
     const liberado = estado.jovens.filter(j => j.status === 'LIBERADO' || j['MEDIDA'] === 'Liberação').length;
     
     cards.innerHTML = `
-        <div class="card card-info">
-            <div class="card-icon"><i class="fas fa-users"></i></div>
-            <div class="card-value">${total}</div>
-            <div class="card-label">Total</div>
-        </div>
-        <div class="card card-success">
-            <div class="card-icon"><i class="fas fa-check-circle"></i></div>
-            <div class="card-value">${regular}</div>
-            <div class="card-label">REGULAR</div>
-        </div>
-        <div class="card card-warning">
-            <div class="card-icon"><i class="fas fa-exclamation-circle"></i></div>
-            <div class="card-value">${irregular}</div>
-            <div class="card-label">IRREGULAR</div>
-        </div>
-        <div class="card card-danger">
-            <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
-            <div class="card-value">${descumprimento}</div>
-            <div class="card-label">DESCUMPRIMENTO</div>
-        </div>
-        <div class="card" style="border-left:4px solid #8b5cf6;">
-            <div class="card-icon"><i class="fas fa-pause-circle"></i></div>
-            <div class="card-value">${suspenso}</div>
-            <div class="card-label">SUSPENSO</div>
-        </div>
-        <div class="card" style="border-left:4px solid #1A2A4A;">
-            <div class="card-icon"><i class="fas fa-flag-checkered"></i></div>
-            <div class="card-value">${medidaFinalizada}</div>
-            <div class="card-label">FINALIZADA</div>
-        </div>
-        <div class="card" style="border-left:4px solid #94a3b8;">
-            <div class="card-icon"><i class="fas fa-door-open"></i></div>
-            <div class="card-value">${liberado}</div>
-            <div class="card-label">LIBERADO</div>
-        </div>
+        <div class="card card-info"><div class="card-icon"><i class="fas fa-users"></i></div><div class="card-value">${total}</div><div class="card-label">Total</div></div>
+        <div class="card card-success"><div class="card-icon"><i class="fas fa-check-circle"></i></div><div class="card-value">${regular}</div><div class="card-label">REGULAR</div></div>
+        <div class="card card-warning"><div class="card-icon"><i class="fas fa-exclamation-circle"></i></div><div class="card-value">${irregular}</div><div class="card-label">IRREGULAR</div></div>
+        <div class="card card-danger"><div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="card-value">${descumprimento}</div><div class="card-label">DESCUMPRIMENTO</div></div>
+        <div class="card" style="border-left:4px solid #8b5cf6;"><div class="card-icon"><i class="fas fa-pause-circle"></i></div><div class="card-value">${suspenso}</div><div class="card-label">SUSPENSO</div></div>
+        <div class="card" style="border-left:4px solid #1A2A4A;"><div class="card-icon"><i class="fas fa-flag-checkered"></i></div><div class="card-value">${medidaFinalizada}</div><div class="card-label">FINALIZADA</div></div>
+        <div class="card" style="border-left:4px solid #94a3b8;"><div class="card-icon"><i class="fas fa-door-open"></i></div><div class="card-value">${liberado}</div><div class="card-label">LIBERADO</div></div>
     `;
     renderizarGraficos();
 }
 
 function renderizarGraficos() {
     try {
-        Object.values(estado.graficos).forEach(c => {
-            if (c && c.destroy) c.destroy();
-        });
+        Object.values(estado.graficos).forEach(c => { if (c && c.destroy) c.destroy(); });
         estado.graficos = {};
         
         const regular = estado.jovens.filter(j => j.status === 'REGULAR');
         const medidas = {};
-        regular.forEach(j => {
-            const m = j['MEDIDA'] || 'Não informada';
-            medidas[m] = (medidas[m] || 0) + 1;
-        });
+        regular.forEach(j => { const m = j['MEDIDA'] || 'Não informada'; medidas[m] = (medidas[m]||0)+1; });
         const ctx1 = document.getElementById('graficoMedidas')?.getContext('2d');
         if (ctx1 && Object.keys(medidas).length > 0) {
-            estado.graficos.medidas = new Chart(ctx1, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(medidas),
-                    datasets: [{ label: 'Jovens', data: Object.values(medidas), backgroundColor: '#2563eb' }]
-                },
-                options: { responsive: true, maintainAspectRatio: true }
-            });
+            estado.graficos.medidas = new Chart(ctx1, { type:'bar', data:{ labels:Object.keys(medidas), datasets:[{ label:'Jovens', data:Object.values(medidas), backgroundColor:'#2563eb' }] }, options:{ responsive:true, maintainAspectRatio:true } });
         }
         
-        const generos = { M: 0, F: 0, NB: 0 };
-        estado.jovens.forEach(j => {
-            const g = j['GÊNERO'] || 'M';
-            if (generos[g] !== undefined) generos[g]++;
-        });
+        const generos = { M:0, F:0, NB:0 };
+        estado.jovens.forEach(j => { const g = j['GÊNERO'] || 'M'; if (generos[g] !== undefined) generos[g]++; });
         const ctx2 = document.getElementById('graficoGenero')?.getContext('2d');
-        if (ctx2 && (generos.M > 0 || generos.F > 0 || generos.NB > 0)) {
-            estado.graficos.genero = new Chart(ctx2, {
-                type: 'pie',
-                data: {
-                    labels: ['Masculino', 'Feminino', 'Não-binário'],
-                    datasets: [{ data: [generos.M, generos.F, generos.NB], backgroundColor: ['#2563eb', '#10b981', '#f59e0b'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: true }
-            });
+        if (ctx2 && (generos.M>0 || generos.F>0 || generos.NB>0)) {
+            estado.graficos.genero = new Chart(ctx2, { type:'pie', data:{ labels:['Masculino','Feminino','Não-binário'], datasets:[{ data:[generos.M,generos.F,generos.NB], backgroundColor:['#2563eb','#10b981','#f59e0b'] }] }, options:{ responsive:true, maintainAspectRatio:true } });
         }
         
-        const idades = { '12-15': 0, '16-18': 0, '19+': 0 };
-        estado.jovens.forEach(j => {
-            const idade = parseInt(j['IDADE']) || 0;
-            if (idade >= 12 && idade <= 15) idades['12-15']++;
-            else if (idade >= 16 && idade <= 18) idades['16-18']++;
-            else if (idade >= 19) idades['19+']++;
-        });
+        const idades = { '12-15':0, '16-18':0, '19+':0 };
+        estado.jovens.forEach(j => { const idade = parseInt(j['IDADE']) || 0; if (idade>=12 && idade<=15) idades['12-15']++; else if (idade>=16 && idade<=18) idades['16-18']++; else if (idade>=19) idades['19+']++; });
         const ctx3 = document.getElementById('graficoIdade')?.getContext('2d');
-        if (ctx3 && (idades['12-15'] > 0 || idades['16-18'] > 0 || idades['19+'] > 0)) {
-            estado.graficos.idade = new Chart(ctx3, {
-                type: 'bar',
-                data: {
-                    labels: ['12 a 15', '16 a 18', '19+'],
-                    datasets: [{ label: 'Jovens', data: [idades['12-15'], idades['16-18'], idades['19+']], backgroundColor: '#8b5cf6' }]
-                },
-                options: { responsive: true, maintainAspectRatio: true }
-            });
+        if (ctx3 && (idades['12-15']>0 || idades['16-18']>0 || idades['19+']>0)) {
+            estado.graficos.idade = new Chart(ctx3, { type:'bar', data:{ labels:['12 a 15','16 a 18','19+'], datasets:[{ label:'Jovens', data:[idades['12-15'],idades['16-18'],idades['19+']], backgroundColor:'#8b5cf6' }] }, options:{ responsive:true, maintainAspectRatio:true } });
         }
         
         const reverte = estado.oficinas.filter(o => o.reverte).length;
         const naoReverte = estado.oficinas.length - reverte;
         const ctx5 = document.getElementById('graficoReverte')?.getContext('2d');
-        if (ctx5 && (reverte > 0 || naoReverte > 0)) {
-            estado.graficos.reverte = new Chart(ctx5, {
-                type: 'pie',
-                data: {
-                    labels: ['Reverte', 'Não reverte'],
-                    datasets: [{ data: [reverte, naoReverte], backgroundColor: ['#10b981', '#6c757d'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: true }
-            });
+        if (ctx5 && (reverte>0 || naoReverte>0)) {
+            estado.graficos.reverte = new Chart(ctx5, { type:'pie', data:{ labels:['Reverte','Não reverte'], datasets:[{ data:[reverte,naoReverte], backgroundColor:['#10b981','#6c757d'] }] }, options:{ responsive:true, maintainAspectRatio:true } });
         }
-    } catch(e) {
-        console.error('Erro gráficos:', e);
-    }
+    } catch(e) { console.error('Erro gráficos:', e); }
 }
 
 // ============================================================
@@ -604,9 +517,7 @@ function renderizarCamposFormulario() {
 window.toggleAcoesLA = function() {
     const medida = document.getElementById('campo_MEDIDA')?.value;
     const container = document.getElementById('containerAcoesLA');
-    if (container) {
-        container.style.display = medida === 'LA' ? 'block' : 'none';
-    }
+    if (container) container.style.display = medida === 'LA' ? 'block' : 'none';
 };
 
 window.adicionarAcaoLAForm = function() {
@@ -621,8 +532,7 @@ window.adicionarAcaoLAForm = function() {
         data: new Date().toISOString(),
         prazo: prazoInput.value
     });
-    input.value = '';
-    prazoInput.value = '';
+    input.value = ''; prazoInput.value = '';
     atualizarListaAcoesLAForm();
 };
 
@@ -680,57 +590,34 @@ async function salvarJovem() {
 }
 
 function limparFormulario() {
-    CAMPOS.forEach(([key]) => {
-        const el = document.getElementById(`campo_${key}`);
-        if (el) el.value = '';
-    });
+    CAMPOS.forEach(([key]) => { const el = document.getElementById(`campo_${key}`); if (el) el.value = ''; });
     if (document.getElementById('campo_ID_DIGITAL')) document.getElementById('campo_ID_DIGITAL').value = '';
-    estado.acoesLATemporarias = [];
-    atualizarListaAcoesLAForm();
-    toggleAcoesLA();
-    estado._editarId = null;
+    estado.acoesLATemporarias = []; atualizarListaAcoesLAForm(); toggleAcoesLA(); estado._editarId = null;
 }
 
 // ============================================================
-// LISTA GERAL – COM CAMPOS EDITÁVEIS
+// LISTA GERAL
 // ============================================================
 function renderizarFiltrosCheckbox() {
     const medidasContainer = document.getElementById('filtroMedida');
     if (medidasContainer) {
         const medidas = ['LA','PSC','Internação','Liberação'];
-        medidasContainer.innerHTML = medidas.map(m =>
-            `<label style="margin-right:10px; font-weight:400; font-size:0.75rem;">
-                <input type="checkbox" value="${m}" onchange="carregarLista()"> ${m}
-            </label>`
-        ).join('');
+        medidasContainer.innerHTML = medidas.map(m => `<label style="margin-right:10px; font-weight:400; font-size:0.75rem;"><input type="checkbox" value="${m}" onchange="carregarLista()"> ${m}</label>`).join('');
     }
     const statusContainer = document.getElementById('filtroStatus');
     if (statusContainer) {
         const status = ['REGULAR','IRREGULAR','EM DESCUMPRIMENTO','SUSPENSO','MEDIDA FINALIZADA','LIBERADO'];
-        statusContainer.innerHTML = status.map(s =>
-            `<label style="margin-right:10px; font-weight:400; font-size:0.75rem;">
-                <input type="checkbox" value="${s}" onchange="carregarLista()"> ${s}
-            </label>`
-        ).join('');
+        statusContainer.innerHTML = status.map(s => `<label style="margin-right:10px; font-weight:400; font-size:0.75rem;"><input type="checkbox" value="${s}" onchange="carregarLista()"> ${s}</label>`).join('');
     }
     const generoContainer = document.getElementById('filtroGenero');
     if (generoContainer) {
-        const generos = ['M','F','NB'];
-        const labels = {'M':'Masculino','F':'Feminino','NB':'Não-binário'};
-        generoContainer.innerHTML = generos.map(g =>
-            `<label style="margin-right:10px; font-weight:400; font-size:0.75rem;">
-                <input type="checkbox" value="${g}" onchange="carregarLista()"> ${labels[g] || g}
-            </label>`
-        ).join('');
+        const generos = ['M','F','NB']; const labels = {'M':'Masculino','F':'Feminino','NB':'Não-binário'};
+        generoContainer.innerHTML = generos.map(g => `<label style="margin-right:10px; font-weight:400; font-size:0.75rem;"><input type="checkbox" value="${g}" onchange="carregarLista()"> ${labels[g]||g}</label>`).join('');
     }
     const idadeContainer = document.getElementById('filtroIdade');
     if (idadeContainer) {
         const idades = ['12-15','16-18','19+'];
-        idadeContainer.innerHTML = idades.map(i =>
-            `<label style="margin-right:10px; font-weight:400; font-size:0.75rem;">
-                <input type="checkbox" value="${i}" onchange="carregarLista()"> ${i}
-            </label>`
-        ).join('');
+        idadeContainer.innerHTML = idades.map(i => `<label style="margin-right:10px; font-weight:400; font-size:0.75rem;"><input type="checkbox" value="${i}" onchange="carregarLista()"> ${i}</label>`).join('');
     }
 }
 
@@ -816,17 +703,12 @@ function carregarLista() {
         let botoesStatus = '';
         if (podeAlterarStatus) {
             const opcoes = ['REGULAR','IRREGULAR','EM DESCUMPRIMENTO','SUSPENSO','MEDIDA FINALIZADA','LIBERADO'];
-            botoesStatus = `
-                <select onchange="alterarStatusManual('${j.id}', this.value)" style="padding:2px 6px; font-size:0.7rem; border:1px solid #d1d9e6; border-radius:4px; background:white;">
-                    <option value="">Status</option>
-                    ${opcoes.map(s => `<option value="${s}" ${j.status === s ? 'selected' : ''}>${s}</option>`).join('')}
-                </select>
-            `;
+            botoesStatus = `<select onchange="alterarStatusManual('${j.id}', this.value)" style="padding:2px 6px; font-size:0.7rem; border:1px solid #d1d9e6; border-radius:4px; background:white;"><option value="">Status</option>${opcoes.map(s => `<option value="${s}" ${j.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
         }
         
         let motivoStatus = '';
         if (j.status === 'SUSPENSO' && j.motivoSuspensao) {
-            motivoStatus = `<span title="${j.motivoSuspensao}" style="cursor:help; font-size:0.7rem; color:#be185d;">${j.motivoSuspensao.substring(0, 20)}${j.motivoSuspensao.length > 20 ? '...' : ''}</span>`;
+            motivoStatus = `<span title="${j.motivoSuspensao}" style="cursor:help; font-size:0.7rem; color:#be185d;">${j.motivoSuspensao.substring(0,20)}${j.motivoSuspensao.length>20?'...':''}</span>`;
         }
         
         let botaoPonto = '';
@@ -870,11 +752,7 @@ function atualizarContadorLista(total) {
     let contadorContainer = document.getElementById('contadorContainer');
     if (!contadorContainer) {
         const tabelaWrapper = document.querySelector('#pageLista .table-wrap');
-        if (tabelaWrapper) {
-            contadorContainer = document.createElement('div');
-            contadorContainer.id = 'contadorContainer';
-            tabelaWrapper.appendChild(contadorContainer);
-        }
+        if (tabelaWrapper) { contadorContainer = document.createElement('div'); contadorContainer.id = 'contadorContainer'; tabelaWrapper.appendChild(contadorContainer); }
     }
     if (contadorContainer) {
         contadorContainer.innerHTML = `
@@ -904,14 +782,7 @@ window.atualizarHoras = async function(jovemId, campo, valor) {
         await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
         const campoId = campo === 'HORAS' ? 'horas_atribuidas' : campo === 'HORAS_CUMPRIDAS' ? 'horas_cumpridas' : 'saldo';
         const input = document.getElementById(`${campoId}_${jovemId}`);
-        if (input) {
-            input.style.borderColor = '#10b981';
-            input.style.background = '#f0fdf4';
-            setTimeout(() => {
-                input.style.borderColor = '';
-                input.style.background = '';
-            }, 1500);
-        }
+        if (input) { input.style.borderColor = '#10b981'; input.style.background = '#f0fdf4'; setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 1500); }
         if (campo === 'HORAS' || campo === 'HORAS_CUMPRIDAS') {
             const horasAtribuidas = parseFloat(jovem['HORAS'] || 0);
             const horasCumpridas = parseFloat(jovem['HORAS_CUMPRIDAS'] || 0);
@@ -920,36 +791,21 @@ window.atualizarHoras = async function(jovemId, campo, valor) {
                 jovem['SALDO'] = novoSaldo;
                 await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
                 const saldoInput = document.getElementById(`saldo_${jovemId}`);
-                if (saldoInput) {
-                    saldoInput.value = novoSaldo;
-                    saldoInput.style.borderColor = '#f59e0b';
-                    saldoInput.style.background = '#fffbeb';
-                    setTimeout(() => {
-                        saldoInput.style.borderColor = '';
-                        saldoInput.style.background = '';
-                    }, 1500);
-                }
+                if (saldoInput) { saldoInput.value = novoSaldo; saldoInput.style.borderColor = '#f59e0b'; saldoInput.style.background = '#fffbeb'; setTimeout(() => { saldoInput.style.borderColor = ''; saldoInput.style.background = ''; }, 1500); }
             }
         }
         carregarFichaIndividual();
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    } catch (err) { alert('Erro: ' + err.message); }
 };
 
 window.editarJovem = function(id) {
     const j = estado.jovens.find(x => x.id === id);
     if (!j) return alert('Jovem não encontrado.');
     estado._editarId = id;
-    CAMPOS.forEach(([key]) => {
-        const el = document.getElementById(`campo_${key}`);
-        if (el) el.value = j[key] || '';
-    });
-    const digitalEl = document.getElementById('campo_ID_DIGITAL');
-    if (digitalEl) digitalEl.value = j['ID_DIGITAL'] || '';
+    CAMPOS.forEach(([key]) => { const el = document.getElementById(`campo_${key}`); if (el) el.value = j[key] || ''; });
+    const digitalEl = document.getElementById('campo_ID_DIGITAL'); if (digitalEl) digitalEl.value = j['ID_DIGITAL'] || '';
     estado.acoesLATemporarias = j.acoesLA || [];
-    toggleAcoesLA();
-    atualizarListaAcoesLAForm();
+    toggleAcoesLA(); atualizarListaAcoesLAForm();
     navigateTo('pageCadastro');
 };
 
@@ -965,26 +821,11 @@ window.alterarStatusManual = async function(jovemId, novoStatus) {
     if (novoStatus === 'SUSPENSO') {
         const motivo = prompt('Digite o motivo da suspensão:');
         if (!motivo) return alert('Motivo obrigatório.');
-        jovem.motivoSuspensao = motivo;
-        jovem.dataSuspensao = new Date().toISOString();
-        jovem.suspensoPor = estado.usuarioAtual?.nome || 'Sistema';
-    } else {
-        jovem.motivoSuspensao = '';
-        jovem.dataSuspensao = '';
-    }
+        jovem.motivoSuspensao = motivo; jovem.dataSuspensao = new Date().toISOString(); jovem.suspensoPor = estado.usuarioAtual?.nome || 'Sistema';
+    } else { jovem.motivoSuspensao = ''; jovem.dataSuspensao = ''; }
     if (!jovem.observacoes) jovem.observacoes = [];
-    jovem.observacoes.push({
-        data: new Date().toISOString(),
-        profissional: estado.usuarioAtual?.nome || 'Sistema',
-        texto: `📌 Status alterado de "${statusAnterior}" para "${novoStatus}"${jovem.motivoSuspensao ? ' - Motivo: ' + jovem.motivoSuspensao : ''}`
-    });
-    try {
-        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        await carregarTodosDados();
-        alert('✅ Status alterado!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    jovem.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto: `📌 Status alterado de "${statusAnterior}" para "${novoStatus}"${jovem.motivoSuspensao ? ' - Motivo: ' + jovem.motivoSuspensao : ''}` });
+    try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); await carregarTodosDados(); alert('✅ Status alterado!'); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 // ============================================================
@@ -995,11 +836,8 @@ function toggleSelecionarTodos() {
     const selecionarTodos = document.getElementById('selecionarTodos');
     checkboxes.forEach(cb => {
         cb.checked = selecionarTodos.checked;
-        if (selecionarTodos.checked) {
-            estado.selecionadosLote.add(cb.dataset.id);
-        } else {
-            estado.selecionadosLote.delete(cb.dataset.id);
-        }
+        if (selecionarTodos.checked) estado.selecionadosLote.add(cb.dataset.id);
+        else estado.selecionadosLote.delete(cb.dataset.id);
     });
     atualizarBarraSelecao();
 }
@@ -1007,11 +845,8 @@ function toggleSelecionarTodos() {
 function toggleSelecionarJovem(id) {
     const cb = document.querySelector(`#listaCorpo input[data-id="${id}"]`);
     if (!cb) return;
-    if (cb.checked) {
-        estado.selecionadosLote.add(id);
-    } else {
-        estado.selecionadosLote.delete(id);
-    }
+    if (cb.checked) estado.selecionadosLote.add(id);
+    else estado.selecionadosLote.delete(id);
     atualizarBarraSelecao();
 }
 
@@ -1020,14 +855,8 @@ function atualizarBarraSelecao() {
     const contador = document.getElementById('contadorSelecionados');
     const btnAcoes = document.getElementById('btnAcoesLote');
     const total = estado.selecionadosLote.size;
-    if (total > 0) {
-        barra.style.display = 'flex';
-        btnAcoes.style.display = 'inline-flex';
-        contador.textContent = total;
-    } else {
-        barra.style.display = 'none';
-        btnAcoes.style.display = 'none';
-    }
+    if (total > 0) { barra.style.display = 'flex'; btnAcoes.style.display = 'inline-flex'; contador.textContent = total; }
+    else { barra.style.display = 'none'; btnAcoes.style.display = 'none'; }
 }
 
 function desmarcarTodos() {
@@ -1046,9 +875,7 @@ function abrirModalAcoesLote() {
     document.getElementById('modalAcoesLote').style.display = 'flex';
 }
 
-function fecharModalAcoesLote() {
-    document.getElementById('modalAcoesLote').style.display = 'none';
-}
+function fecharModalAcoesLote() { document.getElementById('modalAcoesLote').style.display = 'none'; }
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('loteAcaoSelect')?.addEventListener('change', function() {
@@ -1068,18 +895,11 @@ async function executarAcaoLote() {
     if (acao === 'excluir') {
         if (!confirm(`Excluir PERMANENTEMENTE ${jovens.length} jovens?`)) return;
         try {
-            for (const j of jovens) {
-                await upstash('DEL', `jovem:${j.id}`);
-                await upstash('SREM', 'jovens:all', j.id);
-            }
+            for (const j of jovens) { await upstash('DEL', `jovem:${j.id}`); await upstash('SREM', 'jovens:all', j.id); }
             estado.jovens = estado.jovens.filter(j => !ids.includes(j.id));
-            desmarcarTodos();
-            fecharModalAcoesLote();
-            await carregarTodosDados();
+            desmarcarTodos(); fecharModalAcoesLote(); await carregarTodosDados();
             alert(`✅ ${jovens.length} jovens excluídos!`);
-        } catch (err) {
-            alert('Erro: ' + err.message);
-        }
+        } catch (err) { alert('Erro: ' + err.message); }
         return;
     }
     
@@ -1087,44 +907,27 @@ async function executarAcaoLote() {
         const novoStatus = document.getElementById('loteNovoStatus').value;
         if (!novoStatus) return alert('Selecione o novo status.');
         let motivo = '';
-        if (novoStatus === 'SUSPENSO') {
-            motivo = document.getElementById('loteMotivoInput').value.trim();
-            if (!motivo) return alert('Informe o motivo.');
-        }
+        if (novoStatus === 'SUSPENSO') { motivo = document.getElementById('loteMotivoInput').value.trim(); if (!motivo) return alert('Informe o motivo.'); }
         if (!confirm(`Alterar status de ${jovens.length} jovens para "${novoStatus}"?`)) return;
         try {
             for (const j of jovens) {
                 j.status = novoStatus;
-                if (novoStatus === 'SUSPENSO') {
-                    j.motivoSuspensao = motivo;
-                    j.dataSuspensao = new Date().toISOString();
-                    j.suspensoPor = estado.usuarioAtual?.nome || 'Sistema';
-                } else {
-                    j.motivoSuspensao = '';
-                    j.dataSuspensao = '';
-                }
+                if (novoStatus === 'SUSPENSO') { j.motivoSuspensao = motivo; j.dataSuspensao = new Date().toISOString(); j.suspensoPor = estado.usuarioAtual?.nome || 'Sistema'; }
+                else { j.motivoSuspensao = ''; j.dataSuspensao = ''; }
                 if (!j.observacoes) j.observacoes = [];
-                j.observacoes.push({
-                    data: new Date().toISOString(),
-                    profissional: estado.usuarioAtual?.nome || 'Sistema',
-                    texto: `📌 Status alterado em lote para "${novoStatus}"${motivo ? ' - Motivo: ' + motivo : ''}`
-                });
+                j.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto: `📌 Status alterado em lote para "${novoStatus}"${motivo ? ' - Motivo: ' + motivo : ''}` });
                 await upstash('SET', `jovem:${j.id}`, JSON.stringify(j));
             }
-            desmarcarTodos();
-            fecharModalAcoesLote();
-            await carregarTodosDados();
+            desmarcarTodos(); fecharModalAcoesLote(); await carregarTodosDados();
             alert(`✅ Status de ${jovens.length} jovens alterado para "${novoStatus}"!`);
-        } catch (err) {
-            alert('Erro: ' + err.message);
-        }
+        } catch (err) { alert('Erro: ' + err.message); }
         return;
     }
     alert('Ação não reconhecida.');
 }
 
 // ============================================================
-// MÊS ANIVERSÁRIO – AUTO E LOTE
+// MÊS ANIVERSÁRIO
 // ============================================================
 window.atualizarMesAniversario = function() {
     const nascInput = document.getElementById('campo_NASC.');
@@ -1136,12 +939,8 @@ window.atualizarMesAniversario = function() {
     if (isNaN(data.getTime())) return alert('Data inválida.');
     const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     mesInput.value = meses[data.getMonth()];
-    mesInput.style.borderColor = '#10b981';
-    mesInput.style.background = '#f0fdf4';
-    setTimeout(() => {
-        mesInput.style.borderColor = '';
-        mesInput.style.background = '';
-    }, 2000);
+    mesInput.style.borderColor = '#10b981'; mesInput.style.background = '#f0fdf4';
+    setTimeout(() => { mesInput.style.borderColor = ''; mesInput.style.background = ''; }, 2000);
 };
 
 window.atualizarTodosMesesAniversario = async function() {
@@ -1160,10 +959,7 @@ window.atualizarTodosMesesAniversario = async function() {
                 await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
                 atualizados++;
             }
-        } catch (err) {
-            erros++;
-            console.error(err);
-        }
+        } catch (err) { erros++; console.error(err); }
     }
     await carregarTodosDados();
     alert(`✅ ${atualizados} atualizados! ⚠️ ${ignorados} ignorados (sem data) ❌ ${erros} erros`);
@@ -1199,9 +995,7 @@ window.abrirFichaModal = function(jovemId) {
                     <span style="font-size:0.7rem; font-weight:600; color:${a.realizado ? '#065f46' : '#92400e'};">${a.realizado ? '✅ Feito' : '⏳ Pendente'}</span>
                 </div>
             `).join('');
-        } else {
-            html += '<span style="font-size:0.85rem; color:#6b7280;">Nenhuma ação</span>';
-        }
+        } else { html += '<span style="font-size:0.85rem; color:#6b7280;">Nenhuma ação</span>'; }
         html += `</div>`;
     }
     html += `</div></div>`;
@@ -1219,9 +1013,7 @@ window.abrirFichaModal = function(jovemId) {
             </tr>
         `).join('');
         html += `</tbody></table></div>`;
-    } else {
-        html += '<p style="color:#6b7280;">Nenhum registro.</p>';
-    }
+    } else { html += '<p style="color:#6b7280;">Nenhum registro.</p>'; }
     html += `</div>`;
     
     const obs = jovem.observacoes || [];
@@ -1238,9 +1030,7 @@ window.abrirFichaModal = function(jovemId) {
             </div>
         `).join('');
         html += `</div>`;
-    } else {
-        html += '<p style="color:#6b7280;">Nenhuma observação.</p>';
-    }
+    } else { html += '<p style="color:#6b7280;">Nenhuma observação.</p>'; }
     html += `</div>`;
     
     const oficinas = estado.oficinas.filter(o => (o.jovensIds || []).includes(jovem.id));
@@ -1258,9 +1048,7 @@ window.abrirFichaModal = function(jovemId) {
             </div>
         `).join('');
         html += `</div>`;
-    } else {
-        html += '<p style="color:#6b7280;">Nenhuma oficina.</p>';
-    }
+    } else { html += '<p style="color:#6b7280;">Nenhuma oficina.</p>'; }
     html += `</div>`;
     
     const avaliacoes = estado.avaliacoes.filter(a => a.jovemId === jovem.id);
@@ -1284,7 +1072,7 @@ window.abrirFichaModal = function(jovemId) {
 };
 
 // ============================================================
-// OBSERVAÇÕES E AÇÕES MANUAIS
+// OBSERVAÇÕES
 // ============================================================
 function renderizarAcompanhamento() {
     const agora = new Date();
@@ -1315,32 +1103,14 @@ function renderizarAcompanhamento() {
         const hist = j.historicoFrequencia || [];
         const ultimo = hist.length > 0 ? new Date(Math.max(...hist.map(h => new Date(h.data)))).toLocaleDateString('pt-BR') : 'Nunca';
         const dias = hist.length > 0 ? Math.floor((agora - new Date(Math.max(...hist.map(h => new Date(h.data))))) / (1000*60*60*24)) : '?';
-        return `<tr>
-            <td>${j['NOME'] || '-'}</td>
-            <td>${j.status || 'REGULAR'}</td>
-            <td>${ultimo}</td>
-            <td>${dias}</td>
-            <td>
-                <button onclick="abrirFichaModal('${j.id}')" class="btn-sm btn-sm-primary"><i class="fas fa-file-alt"></i></button>
-                <button onclick="marcarIrregular('${j.id}')" class="btn-sm btn-sm-warning">Marcar IRREGULAR</button>
-            </td>
-        </tr>`;
+        return `<tr><td>${j['NOME'] || '-'}</td><td>${j.status || 'REGULAR'}</td><td>${ultimo}</td><td>${dias}</td><td><button onclick="abrirFichaModal('${j.id}')" class="btn-sm btn-sm-primary"><i class="fas fa-file-alt"></i></button> <button onclick="marcarIrregular('${j.id}')" class="btn-sm btn-sm-warning">Marcar IRREGULAR</button></td></tr>`;
     }).join('') || '<tr><td colspan="5" style="text-align:center; color:#6b7280;">✅ Nenhum jovem com 7+ dias.</td></tr>';
     
     tabela14.innerHTML = sem14.map(j => {
         const hist = j.historicoFrequencia || [];
         const ultimo = hist.length > 0 ? new Date(Math.max(...hist.map(h => new Date(h.data)))).toLocaleDateString('pt-BR') : 'Nunca';
         const dias = hist.length > 0 ? Math.floor((agora - new Date(Math.max(...hist.map(h => new Date(h.data))))) / (1000*60*60*24)) : '?';
-        return `<tr>
-            <td>${j['NOME'] || '-'}</td>
-            <td>${j.status || 'REGULAR'}</td>
-            <td>${ultimo}</td>
-            <td>${dias}</td>
-            <td>
-                <button onclick="abrirFichaModal('${j.id}')" class="btn-sm btn-sm-primary"><i class="fas fa-file-alt"></i></button>
-                <button onclick="marcarDescumprimento('${j.id}')" class="btn-sm btn-sm-danger">Marcar EM DESCUMPRIMENTO</button>
-            </td>
-        </tr>`;
+        return `<tr><td>${j['NOME'] || '-'}</td><td>${j.status || 'REGULAR'}</td><td>${ultimo}</td><td>${dias}</td><td><button onclick="abrirFichaModal('${j.id}')" class="btn-sm btn-sm-primary"><i class="fas fa-file-alt"></i></button> <button onclick="marcarDescumprimento('${j.id}')" class="btn-sm btn-sm-danger">Marcar EM DESCUMPRIMENTO</button></td></tr>`;
     }).join('') || '<tr><td colspan="5" style="text-align:center; color:#10b981;">✅ Nenhum jovem com 14+ dias.</td></tr>';
 }
 
@@ -1350,18 +1120,8 @@ window.marcarIrregular = async function(jovemId) {
     if (!jovem) return alert('Jovem não encontrado.');
     jovem.status = 'IRREGULAR';
     if (!jovem.observacoes) jovem.observacoes = [];
-    jovem.observacoes.push({
-        data: new Date().toISOString(),
-        profissional: estado.usuarioAtual?.nome || 'Sistema',
-        texto: '🟡 Status alterado para "IRREGULAR" - 7+ dias sem comparecer.'
-    });
-    try {
-        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        await carregarTodosDados();
-        alert('✅ Status alterado.');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    jovem.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto: '🟡 Status alterado para "IRREGULAR" - 7+ dias sem comparecer.' });
+    try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); await carregarTodosDados(); alert('✅ Status alterado.'); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 window.marcarDescumprimento = async function(jovemId) {
@@ -1371,22 +1131,12 @@ window.marcarDescumprimento = async function(jovemId) {
     jovem.status = 'EM DESCUMPRIMENTO';
     jovem.dataDescumprimento = new Date().toISOString();
     if (!jovem.observacoes) jovem.observacoes = [];
-    jovem.observacoes.push({
-        data: new Date().toISOString(),
-        profissional: estado.usuarioAtual?.nome || 'Sistema',
-        texto: '🔴 Status alterado para "EM DESCUMPRIMENTO" - 14+ dias sem comparecer.'
-    });
-    try {
-        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        await carregarTodosDados();
-        alert('✅ Status alterado.');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    jovem.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto: '🔴 Status alterado para "EM DESCUMPRIMENTO" - 14+ dias sem comparecer.' });
+    try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); await carregarTodosDados(); alert('✅ Status alterado.'); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 // ============================================================
-// METAS LA PRÓXIMAS
+// METAS LA
 // ============================================================
 function listarMetasLAProximas() {
     const container = document.getElementById('listaMetasLAProximas');
@@ -1402,27 +1152,15 @@ function listarMetasLAProximas() {
             const dataPrazo = new Date(a.prazo);
             if (isNaN(dataPrazo.getTime())) return;
             if (dataPrazo >= hoje && dataPrazo <= limite) {
-                metas.push({
-                    nome: j['NOME'] || j['REFERENCIA'] || 'Sem nome',
-                    acao: a.texto,
-                    prazo: dataPrazo,
-                    jovemId: j.id
-                });
+                metas.push({ nome: j['NOME'] || j['REFERENCIA'] || 'Sem nome', acao: a.texto, prazo: dataPrazo, jovemId: j.id });
             }
         });
     });
-    metas.sort((a, b) => a.prazo - b.prazo);
-    
-    if (metas.length === 0) {
-        container.innerHTML = '<p style="color:#6b7280;">Nenhuma meta com vencimento próximo (≤ 7 dias).</p>';
-        return;
-    }
+    metas.sort((a,b) => a.prazo - b.prazo);
+    if (metas.length === 0) { container.innerHTML = '<p style="color:#6b7280;">Nenhuma meta com vencimento próximo (≤ 7 dias).</p>'; return; }
     container.innerHTML = metas.map(m => `
         <div style="background:white; border-radius:10px; padding:10px 14px; border-left:4px solid #f59e0b; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-            <div>
-                <span style="font-weight:600;">${m.nome}</span> — ${m.acao}
-                <span style="font-size:0.75rem; color:#6b7280;">Vence: ${m.prazo.toLocaleDateString('pt-BR')}</span>
-            </div>
+            <div><span style="font-weight:600;">${m.nome}</span> — ${m.acao} <span style="font-size:0.75rem; color:#6b7280;">Vence: ${m.prazo.toLocaleDateString('pt-BR')}</span></div>
             <span style="font-size:0.7rem; font-weight:600; background:#fef3c7; color:#92400e; padding:2px 10px; border-radius:20px;">⏳ Próximo</span>
         </div>
     `).join('');
@@ -1445,30 +1183,12 @@ function renderizarAcoesLA() {
         const j = estado.jovens.find(x => x.id === jovemId);
         if (j) acoes = j.acoesLA || [];
     } else {
-        estado.jovens.forEach(j => {
-            if (j['MEDIDA'] === 'LA') {
-                (j.acoesLA || []).forEach(a => {
-                    acoes.push({ ...a, jovemNome: j['NOME'] || 'Sem nome', jovemId: j.id });
-                });
-            }
-        });
+        estado.jovens.forEach(j => { if (j['MEDIDA'] === 'LA') (j.acoesLA || []).forEach(a => acoes.push({ ...a, jovemNome: j['NOME'] || 'Sem nome', jovemId: j.id })); });
     }
     lista.innerHTML = acoes.map(a => `
         <div style="background:#f8fafc; border-radius:10px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; border-left:4px solid ${a.realizado ? '#10b981' : '#f59e0b'};">
-            <div>
-                <div><strong>${a.texto}</strong></div>
-                <div style="font-size:0.75rem; color:#64748b;">
-                    ${a.jovemNome ? `Jovem: ${a.jovemNome} - ` : ''}
-                    Vence: ${a.prazo ? new Date(a.prazo).toLocaleDateString('pt-BR') : 'Sem prazo'}
-                    ${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}
-                </div>
-            </div>
-            <div>
-                <button class="btn-sm btn-sm-success" onclick="toggleAcaoLaGeral('${a.jovemId || jovemId}', ${a.id})">
-                    ${a.realizado ? 'Desmarcar' : 'Marcar Feito'}
-                </button>
-                <button class="btn-sm btn-sm-danger" onclick="removerAcaoLaGeral('${a.jovemId || jovemId}', ${a.id})">🗑️</button>
-            </div>
+            <div><div><strong>${a.texto}</strong></div><div style="font-size:0.75rem; color:#64748b;">${a.jovemNome ? `Jovem: ${a.jovemNome} - ` : ''}Vence: ${a.prazo ? new Date(a.prazo).toLocaleDateString('pt-BR') : 'Sem prazo'} ${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}</div></div>
+            <div><button class="btn-sm btn-sm-success" onclick="toggleAcaoLaGeral('${a.jovemId || jovemId}', ${a.id})">${a.realizado ? 'Desmarcar' : 'Marcar Feito'}</button> <button class="btn-sm btn-sm-danger" onclick="removerAcaoLaGeral('${a.jovemId || jovemId}', ${a.id})">🗑️</button></div>
         </div>
     `).join('') || '<p style="color:#6b7280;">Nenhuma ação cadastrada.</p>';
 }
@@ -1483,23 +1203,8 @@ window.adicionarAcaoLA = async function() {
     const jovem = estado.jovens.find(j => j.id === jovemId);
     if (!jovem) return alert('Jovem não encontrado.');
     jovem.acoesLA = jovem.acoesLA || [];
-    jovem.acoesLA.push({
-        id: Date.now(),
-        texto: acaoTexto,
-        realizado: false,
-        data: new Date().toISOString(),
-        prazo: prazo
-    });
-    try {
-        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        document.getElementById('laAcaoInput').value = '';
-        document.getElementById('laPrazoInput').value = '';
-        renderizarAcoesLA();
-        listarMetasLAProximas();
-        alert('Ação adicionada!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    jovem.acoesLA.push({ id: Date.now(), texto: acaoTexto, realizado: false, data: new Date().toISOString(), prazo: prazo });
+    try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); document.getElementById('laAcaoInput').value = ''; document.getElementById('laPrazoInput').value = ''; renderizarAcoesLA(); listarMetasLAProximas(); alert('Ação adicionada!'); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 window.toggleAcaoLaGeral = async function(jovemId, acaoId) {
@@ -1508,13 +1213,7 @@ window.toggleAcaoLaGeral = async function(jovemId, acaoId) {
     const acao = jovem.acoesLA.find(a => a.id === acaoId);
     if (!acao) return alert('Ação não encontrada.');
     acao.realizado = !acao.realizado;
-    try {
-        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        renderizarAcoesLA();
-        listarMetasLAProximas();
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); renderizarAcoesLA(); listarMetasLAProximas(); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 window.removerAcaoLaGeral = async function(jovemId, acaoId) {
@@ -1522,13 +1221,7 @@ window.removerAcaoLaGeral = async function(jovemId, acaoId) {
     const jovem = estado.jovens.find(j => j.id === jovemId);
     if (!jovem) return alert('Jovem não encontrado.');
     jovem.acoesLA = jovem.acoesLA.filter(a => a.id !== acaoId);
-    try {
-        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        renderizarAcoesLA();
-        listarMetasLAProximas();
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); renderizarAcoesLA(); listarMetasLAProximas(); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 // ============================================================
@@ -1538,8 +1231,7 @@ function popularSelectProfissionaisAvaliacao() {
     const select = document.getElementById('avaliacaoProfissional');
     if (!select) return;
     const profs = estado.profissionais.filter(p => p.nome);
-    select.innerHTML = '<option value="">Selecione...</option>' +
-        profs.map(p => `<option value="${p.id}">${p.nome}${p.funcao ? ' - ' + p.funcao : ''}${p.registro ? ' (Reg: ' + p.registro + ')' : ''}</option>`).join('');
+    select.innerHTML = '<option value="">Selecione...</option>' + profs.map(p => `<option value="${p.id}">${p.nome}${p.funcao ? ' - ' + p.funcao : ''}${p.registro ? ' (Reg: ' + p.registro + ')' : ''}</option>`).join('');
 }
 
 window.abrirModalAvaliacao = function() {
@@ -1552,10 +1244,7 @@ window.abrirModalAvaliacao = function() {
     document.getElementById('modalAvaliacao').style.display = 'flex';
 };
 
-window.fecharModalAvaliacao = function() {
-    document.getElementById('modalAvaliacao').style.display = 'none';
-    estado._avaliacaoJovemId = null;
-};
+window.fecharModalAvaliacao = function() { document.getElementById('modalAvaliacao').style.display = 'none'; estado._avaliacaoJovemId = null; };
 
 window.salvarAvaliacao = async function() {
     const jovemId = estado._avaliacaoJovemId;
@@ -1567,52 +1256,20 @@ window.salvarAvaliacao = async function() {
     if (!profissionalId || !data || !conteudo) return alert('Preencha todos os campos.');
     const profissional = estado.profissionais.find(p => p.id === profissionalId);
     if (!profissional) return alert('Profissional não encontrado.');
-    const avaliacao = {
-        id: 'av_' + Date.now(),
-        jovemId,
-        profissionalId,
-        profissionalNome: profissional.nome,
-        profissionalFuncao: profissional.funcao || '',
-        profissionalRegistro: profissional.registro || '',
-        data,
-        area,
-        conteudo,
-        criadoEm: new Date().toISOString()
-    };
+    const avaliacao = { id: 'av_' + Date.now(), jovemId, profissionalId, profissionalNome: profissional.nome, profissionalFuncao: profissional.funcao || '', profissionalRegistro: profissional.registro || '', data, area, conteudo, criadoEm: new Date().toISOString() };
     try {
         await upstash('SET', `avaliacao:${avaliacao.id}`, JSON.stringify(avaliacao));
         await upstash('SADD', 'avaliacoes:all', avaliacao.id);
         estado.avaliacoes.push(avaliacao);
         const jovem = estado.jovens.find(j => j.id === jovemId);
-        if (jovem) {
-            if (!jovem.avaliacoes) jovem.avaliacoes = [];
-            jovem.avaliacoes.push(avaliacao.id);
-            await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        }
-        fecharModalAvaliacao();
-        carregarFichaIndividual();
-        alert('✅ Avaliação salva!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+        if (jovem) { if (!jovem.avaliacoes) jovem.avaliacoes = []; jovem.avaliacoes.push(avaliacao.id); await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); }
+        fecharModalAvaliacao(); carregarFichaIndividual(); alert('✅ Avaliação salva!');
+    } catch (err) { alert('Erro: ' + err.message); }
 };
 
 window.excluirAvaliacao = async function(avaliacaoId) {
     if (!confirm('Excluir esta avaliação?')) return;
-    try {
-        await upstash('DEL', `avaliacao:${avaliacaoId}`);
-        await upstash('SREM', 'avaliacoes:all', avaliacaoId);
-        estado.avaliacoes = estado.avaliacoes.filter(a => a.id !== avaliacaoId);
-        const jovem = estado.jovens.find(j => j.avaliacoes && j.avaliacoes.includes(avaliacaoId));
-        if (jovem) {
-            jovem.avaliacoes = jovem.avaliacoes.filter(id => id !== avaliacaoId);
-            await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        }
-        carregarFichaIndividual();
-        alert('✅ Avaliação excluída!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    try { await upstash('DEL', `avaliacao:${avaliacaoId}`); await upstash('SREM', 'avaliacoes:all', avaliacaoId); estado.avaliacoes = estado.avaliacoes.filter(a => a.id !== avaliacaoId); const jovem = estado.jovens.find(j => j.avaliacoes && j.avaliacoes.includes(avaliacaoId)); if (jovem) { jovem.avaliacoes = jovem.avaliacoes.filter(id => id !== avaliacaoId); await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); } carregarFichaIndividual(); alert('✅ Avaliação excluída!'); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 // ============================================================
@@ -1621,24 +1278,17 @@ window.excluirAvaliacao = async function(avaliacaoId) {
 function popularSelectAcompInd() {
     const select = document.getElementById('selectJovemAcomp');
     if (!select) return;
-    select.innerHTML = '<option value="">Selecione...</option>' +
-        estado.jovens.sort((a, b) => (a['NOME'] || '').localeCompare(b['NOME'] || '', 'pt-BR'))
-        .map(j => `<option value="${j.id}">${j['NOME'] || j['REFERENCIA']} - ${j['MEDIDA'] || ''} ${j.status === 'SUSPENSO' ? '🔴' : j.status === 'EM DESCUMPRIMENTO' ? '⚠️' : j.status === 'MEDIDA FINALIZADA' ? '✅' : ''}</option>`).join('');
+    select.innerHTML = '<option value="">Selecione...</option>' + estado.jovens.sort((a,b) => (a['NOME']||'').localeCompare(b['NOME']||'', 'pt-BR')).map(j => `<option value="${j.id}">${j['NOME'] || j['REFERENCIA']} - ${j['MEDIDA'] || ''} ${j.status === 'SUSPENSO' ? '🔴' : j.status === 'EM DESCUMPRIMENTO' ? '⚠️' : j.status === 'MEDIDA FINALIZADA' ? '✅' : ''}</option>`).join('');
 }
 
 window.carregarFichaIndividual = function() {
     const id = document.getElementById('selectJovemAcomp').value;
     const container = document.getElementById('fichaIndividual');
     const btnPrint = document.getElementById('btnImprimirFicha');
-    if (!id) {
-        container.style.display = 'none';
-        if (btnPrint) btnPrint.style.display = 'none';
-        return;
-    }
+    if (!id) { container.style.display = 'none'; if (btnPrint) btnPrint.style.display = 'none'; return; }
     const jovem = estado.jovens.find(j => j.id === id);
     if (!jovem) return;
-    container.style.display = 'block';
-    if (btnPrint) btnPrint.style.display = 'inline-block';
+    container.style.display = 'block'; if (btnPrint) btnPrint.style.display = 'inline-block';
     
     let acoesLAHTML = '';
     if (jovem['MEDIDA'] === 'LA') {
@@ -1647,116 +1297,45 @@ window.carregarFichaIndividual = function() {
         const profAtual = estado.usuarios.find(u => u.id === jovem.profissionalLA);
         acoesLAHTML = `
             <h3 style="margin-top:1rem; border-bottom:2px solid #e2e8f0; padding-bottom:4px;">⚖️ Acompanhamento LA</h3>
-            <div style="margin-bottom:12px;">
-                <label style="font-weight:bold;">Profissional Responsável:</label>
-                <select onchange="vincularProfissionalLA('${jovem.id}', this.value)" style="padding:4px 8px; border-radius:6px; margin-left:10px; border:1px solid #d1d9e6;">
-                    ${profs.map(p => `<option value="${p.id}" ${jovem.profissionalLA === p.id ? 'selected' : ''}>${p.nome}</option>`).join('')}
-                </select>
-                ${profAtual ? `<span style="margin-left:12px; color:#10b981;">✅ ${profAtual.nome}</span>` : ''}
-            </div>
-            <ul style="list-style:none; padding:0;">
-                ${acoes.map(a => `
-                    <li style="padding:8px 12px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; border-radius:6px; flex-wrap:wrap; gap:6px;">
-                        <span style="${a.realizado ? 'text-decoration:line-through; color:#10b981;' : ''}">
-                            ${a.texto} ${a.prazo ? `<span style="font-size:0.65rem; color:#64748b;">(Vence: ${new Date(a.prazo).toLocaleDateString('pt-BR')})</span>` : ''}
-                        </span>
-                        <div>
-                            <button class="btn-sm ${a.realizado ? 'btn-sm-success' : 'btn-sm-warning'}" onclick="toggleAcaoLA('${jovem.id}', ${a.id})">
-                                ${a.realizado ? '✅ Feito' : 'Marcar Feito'}
-                            </button>
-                        </div>
-                    </li>
-                `).join('')}
-            </ul>
+            <div style="margin-bottom:12px;"><label style="font-weight:bold;">Profissional Responsável:</label><select onchange="vincularProfissionalLA('${jovem.id}', this.value)" style="padding:4px 8px; border-radius:6px; margin-left:10px; border:1px solid #d1d9e6;">${profs.map(p => `<option value="${p.id}" ${jovem.profissionalLA === p.id ? 'selected' : ''}>${p.nome}</option>`).join('')}</select>${profAtual ? `<span style="margin-left:12px; color:#10b981;">✅ ${profAtual.nome}</span>` : ''}</div>
+            <ul style="list-style:none; padding:0;">${acoes.map(a => `<li style="padding:8px 12px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; border-radius:6px; flex-wrap:wrap; gap:6px;"><span style="${a.realizado ? 'text-decoration:line-through; color:#10b981;' : ''}">${a.texto} ${a.prazo ? `<span style="font-size:0.65rem; color:#64748b;">(Vence: ${new Date(a.prazo).toLocaleDateString('pt-BR')})</span>` : ''}</span><div><button class="btn-sm ${a.realizado ? 'btn-sm-success' : 'btn-sm-warning'}" onclick="toggleAcaoLA('${jovem.id}', ${a.id})">${a.realizado ? '✅ Feito' : 'Marcar Feito'}</button></div></li>`).join('')}</ul>
         `;
     }
     
     const dadosDiv = document.getElementById('fichaDadosPessoais');
     if (dadosDiv) {
-        dadosDiv.innerHTML = `
-            <div class="ficha-grid">
-                ${CAMPOS.map(([key, label]) => `<div class="ficha-campo"><strong>${label}:</strong> ${jovem[key] || '-'}</div>`).join('')}
-                <div class="ficha-campo"><strong>ID Digital:</strong> ${jovem['ID_DIGITAL'] || '-'}</div>
-                <div class="ficha-campo"><strong>Horas Atribuídas:</strong> ${jovem['HORAS'] || 0}h</div>
-                <div class="ficha-campo"><strong>Horas Cumpridas:</strong> ${calcularHorasCumpridas(jovem)}h</div>
-                <div class="ficha-campo"><strong>Saldo:</strong> ${calcularSaldo(jovem)}h</div>
-                ${jovem.motivoSuspensao ? `<div class="ficha-campo" style="grid-column:1/-1; background:#fce7f3; padding:6px; border-radius:4px;"><strong style="color:#be185d;">Motivo da Suspensão:</strong> ${jovem.motivoSuspensao}</div>` : ''}
-                ${jovem.status === 'EM DESCUMPRIMENTO' ? `<div class="ficha-campo" style="grid-column:1/-1; background:#fee2e2; padding:6px; border-radius:4px;"><strong style="color:#991b1b;">⚠️ Status: EM DESCUMPRIMENTO</strong></div>` : ''}
-                ${jovem.status === 'IRREGULAR' ? `<div class="ficha-campo" style="grid-column:1/-1; background:#fef3c7; padding:6px; border-radius:4px;"><strong style="color:#92400e;">🟡 Status: IRREGULAR</strong></div>` : ''}
-            </div>
-            ${acoesLAHTML}
-        `;
+        dadosDiv.innerHTML = `<div class="ficha-grid">${CAMPOS.map(([key,label]) => `<div class="ficha-campo"><strong>${label}:</strong> ${jovem[key] || '-'}</div>`).join('')}<div class="ficha-campo"><strong>ID Digital:</strong> ${jovem['ID_DIGITAL'] || '-'}</div><div class="ficha-campo"><strong>Horas Atribuídas:</strong> ${jovem['HORAS'] || 0}h</div><div class="ficha-campo"><strong>Horas Cumpridas:</strong> ${calcularHorasCumpridas(jovem)}h</div><div class="ficha-campo"><strong>Saldo:</strong> ${calcularSaldo(jovem)}h</div>${jovem.motivoSuspensao ? `<div class="ficha-campo" style="grid-column:1/-1; background:#fce7f3; padding:6px; border-radius:4px;"><strong style="color:#be185d;">Motivo da Suspensão:</strong> ${jovem.motivoSuspensao}</div>` : ''}${jovem.status === 'EM DESCUMPRIMENTO' ? `<div class="ficha-campo" style="grid-column:1/-1; background:#fee2e2; padding:6px; border-radius:4px;"><strong style="color:#991b1b;">⚠️ Status: EM DESCUMPRIMENTO</strong></div>` : ''}${jovem.status === 'IRREGULAR' ? `<div class="ficha-campo" style="grid-column:1/-1; background:#fef3c7; padding:6px; border-radius:4px;"><strong style="color:#92400e;">🟡 Status: IRREGULAR</strong></div>` : ''}</div>${acoesLAHTML}`;
     }
     
     const freqDiv = document.getElementById('fichaFrequencia');
     if (freqDiv) {
         const hist = jovem.historicoFrequencia || [];
-        const totalHoras = hist.reduce((s, h) => s + parseNum(h.horas), 0);
-        freqDiv.innerHTML = `
-            <p><strong>Total de frequências:</strong> ${hist.length} registros</p>
-            <p><strong>Horas cumpridas (sistema):</strong> ${totalHoras.toFixed(1)}h</p>
-            ${hist.length > 0 ? `
-                <table style="margin-top:8px; width:100%;">
-                    <thead><tr><th>Tipo</th><th>Data/Hora</th><th>Horas</th><th>Obs</th></tr></thead>
-                    <tbody>
-                        ${hist.map(h => `
-                            <tr>
-                                <td>${h.tipo === 'saida' ? '🚪 Saída' : '🚪 Entrada'}</td>
-                                <td>${new Date(h.data).toLocaleDateString('pt-BR')} ${new Date(h.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</td>
-                                <td>${h.tipo === 'saida' ? '-' : (parseNum(h.horas) || 0) + 'h'}</td>
-                                <td>${h.observacao || '-'}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            ` : '<p style="color:#6b7280;">Nenhum registro.</p>'}
-        `;
+        const totalHoras = hist.reduce((s,h) => s + parseNum(h.horas), 0);
+        freqDiv.innerHTML = `<p><strong>Total de frequências:</strong> ${hist.length} registros</p><p><strong>Horas cumpridas (sistema):</strong> ${totalHoras.toFixed(1)}h</p>${hist.length > 0 ? `<table style="margin-top:8px; width:100%;"><thead><tr><th>Tipo</th><th>Data/Hora</th><th>Horas</th><th>Obs</th></tr></thead><tbody>${hist.map(h => `<tr><td>${h.tipo === 'saida' ? '🚪 Saída' : '🚪 Entrada'}</td><td>${new Date(h.data).toLocaleDateString('pt-BR')} ${new Date(h.data).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</td><td>${h.tipo === 'saida' ? '-' : (parseNum(h.horas) || 0) + 'h'}</td><td>${h.observacao || '-'}</td></tr>`).join('')}</tbody></table>` : '<p style="color:#6b7280;">Nenhum registro.</p>'}`;
     }
     
     const ofDiv = document.getElementById('fichaOficinas');
     if (ofDiv) {
         const oficinas = estado.oficinas.filter(o => (o.jovensIds || []).includes(jovem.id));
-        ofDiv.innerHTML = oficinas.length > 0 ?
-            `<table style="margin-top:8px; width:100%;"><thead><tr><th>Data</th><th>Conteúdo</th><th>Benefício Social</th></tr></thead><tbody>
-                ${oficinas.map(o => `<tr><td>${new Date(o.data).toLocaleDateString('pt-BR')}</td><td>${o.conteudo}</td><td>${o.reverte ? '✅ Sim' : 'Não'}</td></tr>`).join('')}
-            </tbody></table>` :
-            '<p style="color:#6b7280;">Nenhuma oficina.</p>';
+        ofDiv.innerHTML = oficinas.length > 0 ? `<table style="margin-top:8px; width:100%;"><thead><tr><th>Data</th><th>Conteúdo</th><th>Benefício Social</th></tr></thead><tbody>${oficinas.map(o => `<tr><td>${new Date(o.data).toLocaleDateString('pt-BR')}</td><td>${o.conteudo}</td><td>${o.reverte ? '✅ Sim' : 'Não'}</td></tr>`).join('')}</tbody></table>` : '<p style="color:#6b7280;">Nenhuma oficina.</p>';
     }
     
     const docDiv = document.getElementById('fichaDocumentos');
     if (docDiv) {
         const docs = jovem.documentos || [];
-        docDiv.innerHTML = docs.length > 0 ?
-            docs.map((d, i) => `<div class="doc-item"><span>📄 ${d.nome} (${d.tipo})</span><div>${d.base64 ? `<a href="${d.base64}" download="${d.nome}" class="btn-sm btn-sm-primary" style="text-decoration:none;">📥 Baixar</a>` : ''}<button onclick="removerDocumento('${id}', ${i})" class="btn-sm btn-sm-danger">🗑️</button></div></div>`).join('') :
-            '<p style="color:#6b7280;">Nenhum documento.</p>';
+        docDiv.innerHTML = docs.length > 0 ? docs.map((d,i) => `<div class="doc-item"><span>📄 ${d.nome} (${d.tipo})</span><div>${d.base64 ? `<a href="${d.base64}" download="${d.nome}" class="btn-sm btn-sm-primary" style="text-decoration:none;">📥 Baixar</a>` : ''}<button onclick="removerDocumento('${id}', ${i})" class="btn-sm btn-sm-danger">🗑️</button></div></div>`).join('') : '<p style="color:#6b7280;">Nenhum documento.</p>';
     }
     
     const obsDiv = document.getElementById('fichaObservacoes');
     if (obsDiv) {
         const obs = jovem.observacoes || [];
-        obsDiv.innerHTML = obs.length > 0 ?
-            obs.map(o => `<div class="obs-item"><strong>${o.profissional || 'Sistema'}</strong> - <small>${new Date(o.data).toLocaleDateString('pt-BR')} ${new Date(o.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</small><p>${o.texto}</p></div>`).join('') :
-            '<p style="color:#6b7280;">Nenhuma observação.</p>';
+        obsDiv.innerHTML = obs.length > 0 ? obs.map(o => `<div class="obs-item"><strong>${o.profissional || 'Sistema'}</strong> - <small>${new Date(o.data).toLocaleDateString('pt-BR')} ${new Date(o.data).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</small><p>${o.texto}</p></div>`).join('') : '<p style="color:#6b7280;">Nenhuma observação.</p>';
     }
     
     const avalDiv = document.getElementById('fichaAvaliacoes');
     if (avalDiv) {
         const avaliacoes = estado.avaliacoes.filter(a => a.jovemId === jovem.id);
-        avalDiv.innerHTML = avaliacoes.length > 0 ?
-            avaliacoes.map(a => `
-                <div class="obs-item" style="border-left-color:#8b5cf6; background:#f5f3ff;">
-                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
-                        <strong>${a.profissionalNome}</strong>
-                        <span style="font-size:0.75rem; color:#6b7280;">${a.area} - ${new Date(a.data).toLocaleDateString('pt-BR')}</span>
-                    </div>
-                    ${a.profissionalFuncao ? `<span style="font-size:0.75rem; color:#6b7280;">${a.profissionalFuncao}${a.profissionalRegistro ? ' - Reg: ' + a.profissionalRegistro : ''}</span>` : ''}
-                    <p style="margin-top:6px; white-space:pre-wrap;">${a.conteudo}</p>
-                    <div style="margin-top:4px;">
-                        <button onclick="excluirAvaliacao('${a.id}')" class="btn-sm btn-sm-danger">🗑️ Excluir</button>
-                    </div>
-                </div>
-            `).join('') :
-            '<p style="color:#6b7280;">Nenhuma avaliação.</p>';
+        avalDiv.innerHTML = avaliacoes.length > 0 ? avaliacoes.map(a => `<div class="obs-item" style="border-left-color:#8b5cf6; background:#f5f3ff;"><div style="display:flex; justify-content:space-between; flex-wrap:wrap;"><strong>${a.profissionalNome}</strong><span style="font-size:0.75rem; color:#6b7280;">${a.area} - ${new Date(a.data).toLocaleDateString('pt-BR')}</span></div>${a.profissionalFuncao ? `<span style="font-size:0.75rem; color:#6b7280;">${a.profissionalFuncao}${a.profissionalRegistro ? ' - Reg: ' + a.profissionalRegistro : ''}</span>` : ''}<p style="margin-top:6px; white-space:pre-wrap;">${a.conteudo}</p><div style="margin-top:4px;"><button onclick="excluirAvaliacao('${a.id}')" class="btn-sm btn-sm-danger">🗑️ Excluir</button></div></div>`).join('') : '<p style="color:#6b7280;">Nenhuma avaliação.</p>';
     }
     estado._jovemDocAtual = jovem.id;
 };
@@ -1768,9 +1347,7 @@ window.toggleAcaoLA = async function(jovemId, acaoId) {
     if (!acao) return;
     acao.realizado = !acao.realizado;
     await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-    carregarFichaIndividual();
-    carregarLista();
-    listarMetasLAProximas();
+    carregarFichaIndividual(); carregarLista(); listarMetasLAProximas();
 };
 
 window.vincularProfissionalLA = async function(jovemId, profId) {
@@ -1778,8 +1355,7 @@ window.vincularProfissionalLA = async function(jovemId, profId) {
     if (!jovem) return;
     jovem.profissionalLA = profId;
     await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-    carregarFichaIndividual();
-    alert('Profissional vinculado!');
+    carregarFichaIndividual(); alert('Profissional vinculado!');
 };
 
 window.salvarObsAcomp = async function() {
@@ -1789,19 +1365,8 @@ window.salvarObsAcomp = async function() {
     const jovem = estado.jovens.find(j => j.id === jovemId);
     if (!jovem) return;
     jovem.observacoes = jovem.observacoes || [];
-    jovem.observacoes.push({
-        data: new Date().toISOString(),
-        profissional: estado.usuarioAtual?.nome || 'Sistema',
-        texto: texto
-    });
-    try {
-        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        document.getElementById('obsAcompTexto').value = '';
-        carregarFichaIndividual();
-        alert('Observação salva!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    jovem.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto });
+    try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); document.getElementById('obsAcompTexto').value = ''; carregarFichaIndividual(); alert('Observação salva!'); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 // ============================================================
@@ -1812,26 +1377,20 @@ function renderizarRelatorios() {
     if (tbody1) {
         const agora = new Date();
         const HORAS_POR_QUINZENA = 8;
-        let saldos = estado.jovens
-            .filter(j => j['MEDIDA'] && j['MEDIDA'] !== 'Liberação' && j['MEDIDA'] !== 'LA' && j.status !== 'SUSPENSO' && j.status !== 'EM DESCUMPRIMENTO' && j.status !== 'MEDIDA FINALIZADA')
-            .map(j => {
-                const horasTotal = parseNum(j['HORAS']);
-                const horasFeitas = (j.historicoFrequencia || []).reduce((s, h) => s + parseNum(h.horas), 0);
-                return Math.max(0, horasTotal - horasFeitas);
-            });
+        let saldos = estado.jovens.filter(j => j['MEDIDA'] && j['MEDIDA'] !== 'Liberação' && j['MEDIDA'] !== 'LA' && j.status !== 'SUSPENSO' && j.status !== 'EM DESCUMPRIMENTO' && j.status !== 'MEDIDA FINALIZADA').map(j => { const horasTotal = parseNum(j['HORAS']); const horasFeitas = (j.historicoFrequencia || []).reduce((s,h) => s + parseNum(h.horas), 0); return Math.max(0, horasTotal - horasFeitas); });
         tbody1.innerHTML = '';
         for (let mes = 0; mes < 3; mes++) {
             const dataMes = new Date(agora.getFullYear(), agora.getMonth() + mes, 1);
-            const mesNome = dataMes.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            const mesNome = dataMes.toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
             const diasMes = new Date(dataMes.getFullYear(), dataMes.getMonth() + 1, 0).getDate();
             const ativosQ1 = saldos.filter(s => s > 0).length;
-            const horasQ1 = saldos.reduce((sum, s) => sum + Math.min(s, HORAS_POR_QUINZENA), 0);
+            const horasQ1 = saldos.reduce((sum,s) => sum + Math.min(s, HORAS_POR_QUINZENA), 0);
             saldos = saldos.map(s => Math.max(0, s - HORAS_POR_QUINZENA));
             const q1Inicio = new Date(dataMes.getFullYear(), dataMes.getMonth(), 1);
             const q1Fim = new Date(dataMes.getFullYear(), dataMes.getMonth(), 15);
             tbody1.innerHTML += `<tr><td>1ª Quin. ${mesNome}</td><td>${q1Inicio.toLocaleDateString('pt-BR')} - ${q1Fim.toLocaleDateString('pt-BR')}</td><td>${ativosQ1}</td><td>${horasQ1}h</td></tr>`;
             const ativosQ2 = saldos.filter(s => s > 0).length;
-            const horasQ2 = saldos.reduce((sum, s) => sum + Math.min(s, HORAS_POR_QUINZENA), 0);
+            const horasQ2 = saldos.reduce((sum,s) => sum + Math.min(s, HORAS_POR_QUINZENA), 0);
             saldos = saldos.map(s => Math.max(0, s - HORAS_POR_QUINZENA));
             const q2Inicio = new Date(dataMes.getFullYear(), dataMes.getMonth(), 16);
             const q2Fim = new Date(dataMes.getFullYear(), dataMes.getMonth(), diasMes);
@@ -1856,32 +1415,11 @@ function renderizarRelatorios() {
             if (mesNasc < mesAtual || (mesNasc === mesAtual && diaNasc < agora.getDate())) anoTarget = anoAtual + 1;
             const diffMeses = (anoTarget - anoAtual) * 12 + (mesTarget - mesAtual);
             if (diffMeses < 0 || diffMeses >= 3) return null;
-            return {
-                nome: j['NOME'] || j['REFERENCIA'] || 'Sem nome',
-                status: j.status || 'REGULAR',
-                nasc: nasc,
-                diaNasc: diaNasc,
-                mesTarget: mesTarget,
-                anoTarget: anoTarget,
-                idadeQueFara: anoTarget - nasc.getFullYear(),
-                dataEvento: new Date(anoTarget, mesTarget, diaNasc)
-            };
-        }).filter(Boolean).sort((a, b) => a.dataEvento - b.dataEvento);
+            return { nome: j['NOME'] || j['REFERENCIA'] || 'Sem nome', status: j.status || 'REGULAR', nasc, diaNasc, mesTarget, anoTarget, idadeQueFara: anoTarget - nasc.getFullYear(), dataEvento: new Date(anoTarget, mesTarget, diaNasc) };
+        }).filter(Boolean).sort((a,b) => a.dataEvento - b.dataEvento);
         tbody2.innerHTML = aniversariantes.length > 0 ? aniversariantes.map(a => {
-            let bgStatus = a.status === 'SUSPENSO' ? 'badge-suspenso' :
-                a.status === 'EM DESCUMPRIMENTO' ? 'badge-descumprimento' :
-                a.status === 'IRREGULAR' ? 'badge-irregular' :
-                a.status === 'MEDIDA FINALIZADA' ? 'badge-finalizada' :
-                a.status === 'REGULAR' ? 'badge-regular' :
-                a.status === 'LIBERADO' ? 'badge-liberado' :
-                'badge-regular';
-            return `<tr>
-                <td>${a.nome}</td>
-                <td><span class="badge ${bgStatus}">${a.status}</span></td>
-                <td>${a.nasc.toLocaleDateString('pt-BR')}</td>
-                <td>${String(a.diaNasc).padStart(2, '0')}/${String(a.mesTarget + 1).padStart(2, '0')}/${a.anoTarget}</td>
-                <td>${a.idadeQueFara} anos</td>
-            </tr>`;
+            let bgStatus = a.status === 'SUSPENSO' ? 'badge-suspenso' : a.status === 'EM DESCUMPRIMENTO' ? 'badge-descumprimento' : a.status === 'IRREGULAR' ? 'badge-irregular' : a.status === 'MEDIDA FINALIZADA' ? 'badge-finalizada' : a.status === 'REGULAR' ? 'badge-regular' : a.status === 'LIBERADO' ? 'badge-liberado' : 'badge-regular';
+            return `<tr><td>${a.nome}</td><td><span class="badge ${bgStatus}">${a.status}</span></td><td>${a.nasc.toLocaleDateString('pt-BR')}</td><td>${String(a.diaNasc).padStart(2,'0')}/${String(a.mesTarget+1).padStart(2,'0')}/${a.anoTarget}</td><td>${a.idadeQueFara} anos</td></tr>`;
         }).join('') : '<tr><td colspan="5" style="text-align:center; color:#6b7280;">Nenhum aniversariante nos próximos 3 meses.</td></tr>';
     }
 }
@@ -1890,153 +1428,40 @@ window.imprimirRelatorioCompleto = function() {
     const win = window.open('', '_blank');
     if (!win) return alert('Permita pop-ups.');
     let logoBase64 = estado._logoBase64 || '';
-    
-    let html = `<!DOCTYPE html><html><head><title>Relatório Completo</title><style>
-        body{font-family:'Segoe UI',sans-serif; padding:30px;}
-        table{width:100%; border-collapse:collapse; font-size:12px;}
-        th,td{padding:6px 10px; border-bottom:1px solid #e2e8f0;}
-        th{background:#f1f5f9;}
-        .badge{display:inline-block; padding:2px 10px; border-radius:12px; font-size:10px; font-weight:600;}
-        .badge-regular{background:#dbeafe;color:#1e40af;}
-        .badge-irregular{background:#fef3c7;color:#92400e;}
-        .badge-em-descumprimento{background:#fee2e2;color:#991b1b;}
-        .badge-suspenso{background:#fce7f3;color:#be185d;}
-        .badge-medida-finalizada{background:#d1fae5;color:#065f46;}
-        .badge-liberado{background:#e5e7eb;color:#374151;}
-        .header{text-align:center; margin-bottom:20px;}
-        .no-print{text-align:center; margin-top:20px;}
-        .btn-print{background:#2c3e66;color:white;padding:10px 30px;border:none;border-radius:6px;cursor:pointer;}
-        .btn-close{background:#6c757d;color:white;padding:10px 30px;border:none;border-radius:6px;cursor:pointer;margin-left:10px;}
-        .col-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-        .info-box{background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e2e8f0;}
-        .info-box strong{display:block;color:#2c3e66;}
-        @media print{.no-print{display:none;}}
-    </style></head><body>
-    <div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>📊 Relatório Completo</h1><p>${new Date().toLocaleString('pt-BR')}</p></div>`;
-    
-    html += `<div style="margin-bottom:20px;"><h2>📊 Resumo</h2><div class="col-2">
-        <div class="info-box"><strong>Total Jovens</strong>${estado.jovens.length}</div>
-        <div class="info-box"><strong>REGULAR</strong>${estado.jovens.filter(j=>j.status==='REGULAR').length}</div>
-        <div class="info-box"><strong>IRREGULAR</strong>${estado.jovens.filter(j=>j.status==='IRREGULAR').length}</div>
-        <div class="info-box"><strong>DESCUMPRIMENTO</strong>${estado.jovens.filter(j=>j.status==='EM DESCUMPRIMENTO').length}</div>
-        <div class="info-box"><strong>SUSPENSO</strong>${estado.jovens.filter(j=>j.status==='SUSPENSO').length}</div>
-        <div class="info-box"><strong>FINALIZADA</strong>${estado.jovens.filter(j=>j.status==='MEDIDA FINALIZADA').length}</div>
-        <div class="info-box"><strong>LIBERADO</strong>${estado.jovens.filter(j=>j.status==='LIBERADO'||j['MEDIDA']==='Liberação').length}</div>
-        <div class="info-box"><strong>Oficinas</strong>${estado.oficinas.length}</div>
-    </div></div>`;
-    
-    html += `<div style="margin-bottom:20px;"><h2>👥 Lista de Jovens</h2><table><thead><tr><th>Nome</th><th>Medida</th><th>Status</th><th>Horas Atrib.</th><th>Horas Cumpr.</th><th>Saldo</th></tr></thead><tbody>`;
-    html += estado.jovens.sort((a,b) => (a['NOME']||'').localeCompare(b['NOME']||'')).map(j => `
-        <tr>
-            <td>${j['NOME']||j['REFERENCIA']||'-'}</td>
-            <td>${j['MEDIDA']||'-'}</td>
-            <td><span class="badge badge-${(j.status||'regular').toLowerCase().replace(' ','-')}">${j.status||'REGULAR'}</span></td>
-            <td>${j['HORAS']||0}h</td>
-            <td>${calcularHorasCumpridas(j)}h</td>
-            <td>${calcularSaldo(j)}h</td>
-        </tr>
-    `).join('');
-    html += `</tbody></table></div>`;
-    
-    html += `<div style="margin-bottom:20px;"><h2>📋 Avaliações</h2>`;
-    if (estado.avaliacoes.length > 0) {
-        html += `<table><thead><tr><th>Jovem</th><th>Profissional</th><th>Área</th><th>Data</th></tr></thead><tbody>`;
-        html += estado.avaliacoes.map(a => {
-            const j = estado.jovens.find(x => x.id === a.jovemId);
-            return `<tr><td>${j ? j['NOME']||j['REFERENCIA']||'Sem nome' : 'Não encontrado'}</td><td>${a.profissionalNome}</td><td>${a.area}</td><td>${new Date(a.data).toLocaleDateString('pt-BR')}</td></tr>`;
-        }).join('');
-        html += `</tbody></table>`;
-    } else {
-        html += '<p>Nenhuma avaliação.</p>';
-    }
-    html += `</div>`;
-    
-    html += `<div style="margin-bottom:20px;"><h2>🛠️ Oficinas</h2>`;
-    if (estado.oficinas.length > 0) {
-        html += `<table><thead><tr><th>Data</th><th>Conteúdo</th><th>Participantes</th><th>Benefício</th></tr></thead><tbody>`;
-        html += estado.oficinas.slice().reverse().map(o => `
-            <tr>
-                <td>${new Date(o.data).toLocaleDateString('pt-BR')}</td>
-                <td>${o.conteudo}</td>
-                <td>${(o.jovensIds||[]).map(id => { const j = estado.jovens.find(x=>x.id===id); return j ? j['NOME']||j['REFERENCIA'] : 'Desconhecido'; }).join(', ') || 'Nenhum'}</td>
-                <td>${o.reverte ? '✅ Sim' : 'Não'}</td>
-            </tr>
-        `).join('');
-        html += `</tbody></table>`;
-    } else {
-        html += '<p>Nenhuma oficina.</p>';
-    }
-    html += `</div>`;
-    
+    let html = `<!DOCTYPE html><html><head><title>Relatório Completo</title><style>body{font-family:'Segoe UI',sans-serif; padding:30px;} table{width:100%; border-collapse:collapse; font-size:12px;} th,td{padding:6px 10px; border-bottom:1px solid #e2e8f0;} th{background:#f1f5f9;} .badge{display:inline-block; padding:2px 10px; border-radius:12px; font-size:10px; font-weight:600;} .badge-regular{background:#dbeafe;color:#1e40af;} .badge-irregular{background:#fef3c7;color:#92400e;} .badge-em-descumprimento{background:#fee2e2;color:#991b1b;} .badge-suspenso{background:#fce7f3;color:#be185d;} .badge-medida-finalizada{background:#d1fae5;color:#065f46;} .badge-liberado{background:#e5e7eb;color:#374151;} .header{text-align:center; margin-bottom:20px;} .no-print{text-align:center; margin-top:20px;} .btn-print{background:#2c3e66;color:white;padding:10px 30px;border:none;border-radius:6px;cursor:pointer;} .btn-close{background:#6c757d;color:white;padding:10px 30px;border:none;border-radius:6px;cursor:pointer;margin-left:10px;} .col-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;} .info-box{background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e2e8f0;} .info-box strong{display:block;color:#2c3e66;} @media print{.no-print{display:none;}}</style></head><body><div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>📊 Relatório Completo</h1><p>${new Date().toLocaleString('pt-BR')}</p></div>`;
+    html += `<div style="margin-bottom:20px;"><h2>📊 Resumo</h2><div class="col-2"><div class="info-box"><strong>Total Jovens</strong>${estado.jovens.length}</div><div class="info-box"><strong>REGULAR</strong>${estado.jovens.filter(j=>j.status==='REGULAR').length}</div><div class="info-box"><strong>IRREGULAR</strong>${estado.jovens.filter(j=>j.status==='IRREGULAR').length}</div><div class="info-box"><strong>DESCUMPRIMENTO</strong>${estado.jovens.filter(j=>j.status==='EM DESCUMPRIMENTO').length}</div><div class="info-box"><strong>SUSPENSO</strong>${estado.jovens.filter(j=>j.status==='SUSPENSO').length}</div><div class="info-box"><strong>FINALIZADA</strong>${estado.jovens.filter(j=>j.status==='MEDIDA FINALIZADA').length}</div><div class="info-box"><strong>LIBERADO</strong>${estado.jovens.filter(j=>j.status==='LIBERADO'||j['MEDIDA']==='Liberação').length}</div><div class="info-box"><strong>Oficinas</strong>${estado.oficinas.length}</div></div></div>`;
+    html += `<div style="margin-bottom:20px;"><h2>👥 Lista de Jovens</h2><table><thead><tr><th>Nome</th><th>Medida</th><th>Status</th><th>Horas Atrib.</th><th>Horas Cumpr.</th><th>Saldo</th></tr></thead><tbody>${estado.jovens.sort((a,b)=>(a['NOME']||'').localeCompare(b['NOME']||'')).map(j => `<tr><td>${j['NOME']||j['REFERENCIA']||'-'}</td><td>${j['MEDIDA']||'-'}</td><td><span class="badge badge-${(j.status||'regular').toLowerCase().replace(' ','-')}">${j.status||'REGULAR'}</span></td><td>${j['HORAS']||0}h</td><td>${calcularHorasCumpridas(j)}h</td><td>${calcularSaldo(j)}h</td></tr>`).join('')}</tbody></table></div>`;
+    html += `<div style="margin-bottom:20px;"><h2>📋 Avaliações</h2>${estado.avaliacoes.length > 0 ? `<table><thead><tr><th>Jovem</th><th>Profissional</th><th>Área</th><th>Data</th></tr></thead><tbody>${estado.avaliacoes.map(a => { const j = estado.jovens.find(x => x.id === a.jovemId); return `<tr><td>${j ? j['NOME']||j['REFERENCIA']||'Sem nome' : 'Não encontrado'}</td><td>${a.profissionalNome}</td><td>${a.area}</td><td>${new Date(a.data).toLocaleDateString('pt-BR')}</td></tr>`; }).join('')}</tbody></table>` : '<p>Nenhuma avaliação.</p>'}</div>`;
+    html += `<div style="margin-bottom:20px;"><h2>🛠️ Oficinas</h2>${estado.oficinas.length > 0 ? `<table><thead><tr><th>Data</th><th>Conteúdo</th><th>Participantes</th><th>Benefício</th></tr></thead><tbody>${estado.oficinas.slice().reverse().map(o => `<tr><td>${new Date(o.data).toLocaleDateString('pt-BR')}</td><td>${o.conteudo}</td><td>${(o.jovensIds||[]).map(id => { const j = estado.jovens.find(x=>x.id===id); return j ? j['NOME']||j['REFERENCIA'] : 'Desconhecido'; }).join(', ') || 'Nenhum'}</td><td>${o.reverte ? '✅ Sim' : 'Não'}</td></tr>`).join('')}</tbody></table>` : '<p>Nenhuma oficina.</p>'}</div>`;
     html += `<div class="no-print"><button class="btn-print" onclick="window.print()">🖨️ Imprimir</button><button class="btn-close" onclick="window.close()">Fechar</button></div></body></html>`;
-    win.document.write(html);
-    win.document.close();
+    win.document.write(html); win.document.close();
 };
 
-window.exportarRelatorioCompleto = function() {
-    alert('Clique em "Imprimir" e selecione "Salvar como PDF".');
-    imprimirRelatorioCompleto();
-};
+window.exportarRelatorioCompleto = function() { alert('Clique em "Imprimir" e selecione "Salvar como PDF".'); imprimirRelatorioCompleto(); };
 
 window.abrirRelatorioRevertencia = function() {
     const ofs = estado.oficinas.filter(o => o.reverte);
     if (ofs.length === 0) return alert('Nenhuma oficina revertida.');
     let logoBase64 = estado._logoBase64 || '';
-    let html = `<html><head><title>Relatório Revertência</title><style>body{font-family:sans-serif; padding:30px;} table{width:100%;border-collapse:collapse;} th,td{padding:6px 10px;border-bottom:1px solid #e2e8f0;} th{background:#f1f5f9;} .header{text-align:center;}</style></head><body><div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>🌱 Oficinas Revertidas</h1><p>${new Date().toLocaleString('pt-BR')}</p></div><table><thead><tr><th>Data</th><th>Período</th><th>Conteúdo</th><th>Participantes</th></tr></thead><tbody>`;
-    ofs.forEach(o => {
-        html += `<tr><td>${new Date(o.data).toLocaleDateString('pt-BR')}</td><td>${o.periodo||'-'}</td><td>${o.conteudo}</td><td>${(o.jovensIds||[]).map(id => { const j = estado.jovens.find(x=>x.id===id); return j ? j['NOME']||j['REFERENCIA'] : 'Desconhecido'; }).join(', ') || 'Nenhum'}</td></tr>`;
-    });
-    html += `</tbody></table></body></html>`;
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); }
+    let html = `<html><head><title>Relatório Revertência</title><style>body{font-family:sans-serif; padding:30px;} table{width:100%;border-collapse:collapse;} th,td{padding:6px 10px;border-bottom:1px solid #e2e8f0;} th{background:#f1f5f9;} .header{text-align:center;}</style></head><body><div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>🌱 Oficinas Revertidas</h1><p>${new Date().toLocaleString('pt-BR')}</p></div><table><thead><tr><th>Data</th><th>Período</th><th>Conteúdo</th><th>Participantes</th></tr></thead><tbody>${ofs.map(o => `<tr><td>${new Date(o.data).toLocaleDateString('pt-BR')}</td><td>${o.periodo||'-'}</td><td>${o.conteudo}</td><td>${(o.jovensIds||[]).map(id => { const j = estado.jovens.find(x=>x.id===id); return j ? j['NOME']||j['REFERENCIA'] : 'Desconhecido'; }).join(', ') || 'Nenhum'}</td></tr>`).join('')}</tbody></table></body></html>`;
+    const win = window.open('', '_blank'); if (win) { win.document.write(html); win.document.close(); }
 };
 
 window.abrirRelatorioAvaliacoes = function() {
     if (estado.avaliacoes.length === 0) return alert('Nenhuma avaliação.');
     let logoBase64 = estado._logoBase64 || '';
-    let html = `<html><head><title>Relatório Avaliações</title><style>
-        body{font-family:sans-serif; padding:30px;}
-        .avaliacao-item{background:#f8fafc; border-left:4px solid #8b5cf6; padding:12px; margin-bottom:10px; border-radius:4px;}
-        .header{text-align:center;}
-        .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;}
-        .badge-regular{background:#dbeafe;color:#1e40af;}
-        .badge-irregular{background:#fef3c7;color:#92400e;}
-        .badge-em-descumprimento{background:#fee2e2;color:#991b1b;}
-        .badge-suspenso{background:#fce7f3;color:#be185d;}
-        .badge-medida-finalizada{background:#d1fae5;color:#065f46;}
-        .badge-liberado{background:#e5e7eb;color:#374151;}
-    </style></head><body><div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>📋 Avaliações Profissionais</h1><p>${new Date().toLocaleString('pt-BR')}</p></div>`;
-    
+    let html = `<html><head><title>Relatório Avaliações</title><style>body{font-family:sans-serif; padding:30px;} .avaliacao-item{background:#f8fafc; border-left:4px solid #8b5cf6; padding:12px; margin-bottom:10px; border-radius:4px;} .header{text-align:center;} .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;} .badge-regular{background:#dbeafe;color:#1e40af;} .badge-irregular{background:#fef3c7;color:#92400e;} .badge-em-descumprimento{background:#fee2e2;color:#991b1b;} .badge-suspenso{background:#fce7f3;color:#be185d;} .badge-medida-finalizada{background:#d1fae5;color:#065f46;} .badge-liberado{background:#e5e7eb;color:#374151;}</style></head><body><div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>📋 Avaliações Profissionais</h1><p>${new Date().toLocaleString('pt-BR')}</p></div>`;
     const avaliacoesPorJovem = {};
-    estado.avaliacoes.forEach(a => {
-        if (!avaliacoesPorJovem[a.jovemId]) {
-            const j = estado.jovens.find(x => x.id === a.jovemId);
-            avaliacoesPorJovem[a.jovemId] = {
-                nome: j ? (j['NOME']||j['REFERENCIA']||'Sem nome') : 'Jovem não encontrado',
-                status: j ? j.status : 'REGULAR',
-                avaliacoes: []
-            };
-        }
-        avaliacoesPorJovem[a.jovemId].avaliacoes.push(a);
-    });
+    estado.avaliacoes.forEach(a => { if (!avaliacoesPorJovem[a.jovemId]) { const j = estado.jovens.find(x=>x.id===a.jovemId); avaliacoesPorJovem[a.jovemId] = { nome: j ? (j['NOME']||j['REFERENCIA']||'Sem nome') : 'Jovem não encontrado', status: j ? j.status : 'REGULAR', avaliacoes: [] }; } avaliacoesPorJovem[a.jovemId].avaliacoes.push(a); });
     Object.keys(avaliacoesPorJovem).sort((a,b) => (avaliacoesPorJovem[a].nome||'').localeCompare(avaliacoesPorJovem[b].nome||'')).forEach(jovemId => {
         const info = avaliacoesPorJovem[jovemId];
-        let bgStatus = info.status === 'SUSPENSO' ? 'badge-suspenso' :
-            info.status === 'EM DESCUMPRIMENTO' ? 'badge-em-descumprimento' :
-            info.status === 'IRREGULAR' ? 'badge-irregular' :
-            info.status === 'MEDIDA FINALIZADA' ? 'badge-medida-finalizada' :
-            info.status === 'REGULAR' ? 'badge-regular' :
-            info.status === 'LIBERADO' ? 'badge-liberado' :
-            'badge-regular';
+        let bgStatus = info.status === 'SUSPENSO' ? 'badge-suspenso' : info.status === 'EM DESCUMPRIMENTO' ? 'badge-em-descumprimento' : info.status === 'IRREGULAR' ? 'badge-irregular' : info.status === 'MEDIDA FINALIZADA' ? 'badge-medida-finalizada' : info.status === 'REGULAR' ? 'badge-regular' : info.status === 'LIBERADO' ? 'badge-liberado' : 'badge-regular';
         html += `<div style="margin-top:20px;"><h3>${info.nome} <span class="badge ${bgStatus}">${info.status}</span></h3>`;
-        info.avaliacoes.forEach(a => {
-            html += `<div class="avaliacao-item"><div style="display:flex;justify-content:space-between;"><strong>${a.profissionalNome}</strong><span>${new Date(a.data).toLocaleDateString('pt-BR')}</span></div><div>${a.area}</div><div style="white-space:pre-wrap; margin-top:6px;">${a.conteudo}</div></div>`;
-        });
+        info.avaliacoes.forEach(a => { html += `<div class="avaliacao-item"><div style="display:flex;justify-content:space-between;"><strong>${a.profissionalNome}</strong><span>${new Date(a.data).toLocaleDateString('pt-BR')}</span></div><div>${a.area}</div><div style="white-space:pre-wrap; margin-top:6px;">${a.conteudo}</div></div>`; });
         html += `</div>`;
     });
     html += `</body></html>`;
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); }
+    const win = window.open('', '_blank'); if (win) { win.document.write(html); win.document.close(); }
 };
 
 window.abrirRelatorioLA = function() {
@@ -2044,33 +1469,20 @@ window.abrirRelatorioLA = function() {
     if (jovensLA.length === 0) return alert('Nenhum jovem com LA.');
     let logoBase64 = estado._logoBase64 || '';
     let totalAcoes = 0, totalRealizadas = 0;
-    let html = `<html><head><title>Relatório LA</title><style>
-        body{font-family:sans-serif; padding:30px;}
-        .header{text-align:center;}
-        .acao-item{padding:8px 12px; margin-bottom:6px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;}
-        .acao-item.pendente{background:#fffbeb; border-left:4px solid #f59e0b;}
-        .acao-item.realizado{background:#ecfdf5; border-left:4px solid #10b981;}
-    </style></head><body><div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>⚖️ Ações LA</h1><p>${new Date().toLocaleString('pt-BR')}</p></div>`;
+    let html = `<html><head><title>Relatório LA</title><style>body{font-family:sans-serif; padding:30px;} .header{text-align:center;} .acao-item{padding:8px 12px; margin-bottom:6px; border-radius:4px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;} .acao-item.pendente{background:#fffbeb; border-left:4px solid #f59e0b;} .acao-item.realizado{background:#ecfdf5; border-left:4px solid #10b981;}</style></head><body><div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>⚖️ Ações LA</h1><p>${new Date().toLocaleString('pt-BR')}</p></div>`;
     jovensLA.forEach(j => {
         const acoes = j.acoesLA || [];
         const realizadas = acoes.filter(a => a.realizado).length;
-        totalAcoes += acoes.length;
-        totalRealizadas += realizadas;
+        totalAcoes += acoes.length; totalRealizadas += realizadas;
         html += `<div style="margin-top:16px;"><h3>${j['NOME']||j['REFERENCIA']||'Sem nome'} (${realizadas}/${acoes.length})</h3>`;
-        if (acoes.length === 0) {
-            html += '<p style="color:#6b7280;">Nenhuma ação.</p>';
-        } else {
-            acoes.forEach(a => {
-                const statusClass = a.realizado ? 'realizado' : 'pendente';
-                html += `<div class="acao-item ${statusClass}"><div><span>${a.texto}</span><div style="font-size:0.75rem; color:#6b7280;">${a.prazo ? 'Vence: ' + new Date(a.prazo).toLocaleDateString('pt-BR') : 'Sem prazo'}</div></div><span>${a.realizado ? '✅ Realizado' : '⏳ Pendente'}</span></div>`;
-            });
+        if (acoes.length === 0) { html += '<p style="color:#6b7280;">Nenhuma ação.</p>'; } else {
+            acoes.forEach(a => { const statusClass = a.realizado ? 'realizado' : 'pendente'; html += `<div class="acao-item ${statusClass}"><div><span>${a.texto}</span><div style="font-size:0.75rem; color:#6b7280;">${a.prazo ? 'Vence: ' + new Date(a.prazo).toLocaleDateString('pt-BR') : 'Sem prazo'}</div></div><span>${a.realizado ? '✅ Realizado' : '⏳ Pendente'}</span></div>`; });
         }
         html += `</div>`;
     });
     const progresso = totalAcoes > 0 ? ((totalRealizadas / totalAcoes) * 100).toFixed(1) : 0;
     html += `<div style="margin-top:20px; background:#fffbeb; padding:12px; border-radius:8px; border:1px solid #f59e0b;"><strong>📊 Resumo:</strong> ${totalAcoes} ações • ${totalRealizadas} realizadas • ${progresso}%</div></body></html>`;
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); }
+    const win = window.open('', '_blank'); if (win) { win.document.write(html); win.document.close(); }
 };
 
 window.imprimirFichaIndividual = function() {
@@ -2081,72 +1493,20 @@ window.imprimirFichaIndividual = function() {
     const win = window.open('', '_blank');
     if (!win) return alert('Permita pop-ups.');
     let logoBase64 = estado._logoBase64 || '';
-    
-    let html = `<!DOCTYPE html><html><head><title>Ficha Individual</title><style>
-        body{font-family:sans-serif; padding:30px;}
-        .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;}
-        .field{padding:4px 0;border-bottom:1px solid #f1f5f9;}
-        .field strong{font-size:11px;text-transform:uppercase;color:#6b7280;display:block;}
-        .header{text-align:center;margin-bottom:20px;}
-        .status-badge{display:inline-block;padding:2px 12px;border-radius:12px;font-size:11px;font-weight:600;}
-        .status-REGULAR{background:#dbeafe;color:#1e40af;}
-        .status-IRREGULAR{background:#fef3c7;color:#92400e;}
-        .status-EM_DESCUMPRIMENTO{background:#fee2e2;color:#991b1b;}
-        .status-SUSPENSO{background:#fce7f3;color:#be185d;}
-        .status-MEDIDA_FINALIZADA{background:#d1fae5;color:#065f46;}
-        .status-LIBERADO{background:#e5e7eb;color:#374151;}
-        table{width:100%;border-collapse:collapse;font-size:12px;}
-        th,td{padding:6px 10px;border-bottom:1px solid #e9edf2;}
-        th{background:#f1f5f9;}
-    </style></head><body>
-    <div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>📋 Ficha Individual</h1><p>${jovem['NOME']||'Sem nome'} - ${new Date().toLocaleDateString('pt-BR')}</p><p><span class="status-badge status-${(jovem.status||'REGULAR').replace(/ /g,'_')}">${jovem.status||'REGULAR'}</span></p></div>`;
-    
-    html += `<div style="margin-bottom:16px;"><h2>Dados Pessoais</h2><div class="grid">`;
-    CAMPOS.forEach(([key, label]) => {
-        html += `<div class="field"><strong>${label}</strong><span>${jovem[key]||'-'}</span></div>`;
-    });
-    html += `<div class="field"><strong>ID Digital</strong><span>${jovem['ID_DIGITAL']||'-'}</span></div>`;
-    html += `<div class="field"><strong>Horas Atribuídas</strong><span>${jovem['HORAS']||0}h</span></div>`;
-    html += `<div class="field"><strong>Horas Cumpridas</strong><span>${calcularHorasCumpridas(jovem)}h</span></div>`;
-    html += `<div class="field"><strong>Saldo</strong><span>${calcularSaldo(jovem)}h</span></div>`;
-    html += `</div></div>`;
-    
+    let html = `<!DOCTYPE html><html><head><title>Ficha Individual</title><style>body{font-family:sans-serif; padding:30px;} .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;} .field{padding:4px 0;border-bottom:1px solid #f1f5f9;} .field strong{font-size:11px;text-transform:uppercase;color:#6b7280;display:block;} .header{text-align:center;margin-bottom:20px;} .status-badge{display:inline-block;padding:2px 12px;border-radius:12px;font-size:11px;font-weight:600;} .status-REGULAR{background:#dbeafe;color:#1e40af;} .status-IRREGULAR{background:#fef3c7;color:#92400e;} .status-EM_DESCUMPRIMENTO{background:#fee2e2;color:#991b1b;} .status-SUSPENSO{background:#fce7f3;color:#be185d;} .status-MEDIDA_FINALIZADA{background:#d1fae5;color:#065f46;} .status-LIBERADO{background:#e5e7eb;color:#374151;} table{width:100%;border-collapse:collapse;font-size:12px;} th,td{padding:6px 10px;border-bottom:1px solid #e9edf2;} th{background:#f1f5f9;} </style></head><body><div class="header">${logoBase64 ? `<img src="${logoBase64}" style="max-height:80px;">` : ''}<h1>📋 Ficha Individual</h1><p>${jovem['NOME']||'Sem nome'} - ${new Date().toLocaleDateString('pt-BR')}</p><p><span class="status-badge status-${(jovem.status||'REGULAR').replace(/ /g,'_')}">${jovem.status||'REGULAR'}</span></p></div>`;
+    html += `<div style="margin-bottom:16px;"><h2>Dados Pessoais</h2><div class="grid">${CAMPOS.map(([key,label]) => `<div class="field"><strong>${label}</strong><span>${jovem[key]||'-'}</span></div>`).join('')}<div class="field"><strong>ID Digital</strong><span>${jovem['ID_DIGITAL']||'-'}</span></div><div class="field"><strong>Horas Atribuídas</strong><span>${jovem['HORAS']||0}h</span></div><div class="field"><strong>Horas Cumpridas</strong><span>${calcularHorasCumpridas(jovem)}h</span></div><div class="field"><strong>Saldo</strong><span>${calcularSaldo(jovem)}h</span></div></div></div>`;
     if (jovem['MEDIDA'] === 'LA') {
         const acoes = jovem.acoesLA || [];
-        html += `<div style="margin-bottom:16px;"><h2>Ações LA</h2>`;
-        acoes.forEach(a => {
-            html += `<div style="padding:6px; background:${a.realizado ? '#d1fae5' : '#f8fafc'}; margin-bottom:4px; border-radius:4px;">${a.texto} ${a.prazo ? `<span style="font-size:0.7rem; color:#64748b;">(Vence: ${new Date(a.prazo).toLocaleDateString('pt-BR')})</span>` : ''} - ${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}</div>`;
-        });
-        html += `</div>`;
+        html += `<div style="margin-bottom:16px;"><h2>Ações LA</h2>${acoes.map(a => `<div style="padding:6px; background:${a.realizado ? '#d1fae5' : '#f8fafc'}; margin-bottom:4px; border-radius:4px;">${a.texto} ${a.prazo ? `<span style="font-size:0.7rem; color:#64748b;">(Vence: ${new Date(a.prazo).toLocaleDateString('pt-BR')})</span>` : ''} - ${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}</div>`).join('')}</div>`;
     }
-    
     const avaliacoes = estado.avaliacoes.filter(a => a.jovemId === jovem.id);
     if (avaliacoes.length > 0) {
-        html += `<div style="margin-bottom:16px;"><h2>📋 Avaliações</h2>`;
-        avaliacoes.forEach(a => {
-            html += `<div style="background:#f5f3ff;border-left:3px solid #8b5cf6;padding:8px 12px;margin-bottom:6px;border-radius:4px;">
-                <div style="display:flex;justify-content:space-between;"><strong>${a.profissionalNome}</strong><span>${new Date(a.data).toLocaleDateString('pt-BR')}</span></div>
-                <div>${a.area}</div>
-                <div style="white-space:pre-wrap;margin-top:4px;">${a.conteudo}</div>
-            </div>`;
-        });
-        html += `</div>`;
+        html += `<div style="margin-bottom:16px;"><h2>📋 Avaliações</h2>${avaliacoes.map(a => `<div style="background:#f5f3ff;border-left:3px solid #8b5cf6;padding:8px 12px;margin-bottom:6px;border-radius:4px;"><div style="display:flex;justify-content:space-between;"><strong>${a.profissionalNome}</strong><span>${new Date(a.data).toLocaleDateString('pt-BR')}</span></div><div>${a.area}</div><div style="white-space:pre-wrap;margin-top:4px;">${a.conteudo}</div></div>`).join('')}</div>`;
     }
-    
     const hist = jovem.historicoFrequencia || [];
-    html += `<div><h2>Frequência</h2><p>Total: ${hist.reduce((s,h)=>s+parseFloat(h.horas||0),0).toFixed(1)}h | Saldo: ${calcularSaldo(jovem)}h</p>`;
-    if (hist.length > 0) {
-        html += `<table><thead><tr><th>Tipo</th><th>Data</th><th>Horas</th></tr></thead><tbody>`;
-        hist.forEach(h => {
-            html += `<tr><td>${h.tipo === 'saida' ? 'Saída' : 'Entrada'}</td><td>${new Date(h.data).toLocaleDateString('pt-BR')}</td><td>${h.tipo === 'saida' ? '-' : (h.horas||0) + 'h'}</td></tr>`;
-        });
-        html += `</tbody></table>`;
-    } else {
-        html += '<p>Nenhum registro.</p>';
-    }
-    html += `</div></body></html>`;
-    win.document.write(html);
-    win.document.close();
+    html += `<div><h2>Frequência</h2><p>Total: ${hist.reduce((s,h)=>s+parseFloat(h.horas||0),0).toFixed(1)}h | Saldo: ${calcularSaldo(jovem)}h</p>${hist.length > 0 ? `<table><thead><tr><th>Tipo</th><th>Data</th><th>Horas</th></tr></thead><tbody>${hist.map(h => `<tr><td>${h.tipo === 'saida' ? 'Saída' : 'Entrada'}</td><td>${new Date(h.data).toLocaleDateString('pt-BR')}</td><td>${h.tipo === 'saida' ? '-' : (h.horas||0) + 'h'}</td></tr>`).join('')}</tbody></table>` : '<p>Nenhum registro.</p>'}</div>`;
+    html += `</body></html>`;
+    win.document.write(html); win.document.close();
 };
 
 // ============================================================
@@ -2162,11 +1522,7 @@ window.registrarPontoNaLinha = async function(jovemId) {
         if (!confirm('Jovem irregular. Reativar para REGULAR?')) return;
         jovem.status = 'REGULAR';
         if (!jovem.observacoes) jovem.observacoes = [];
-        jovem.observacoes.push({
-            data: new Date().toISOString(),
-            profissional: estado.usuarioAtual?.nome || 'Sistema',
-            texto: '✅ Reativado para REGULAR ao registrar presença.'
-        });
+        jovem.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto: '✅ Reativado para REGULAR ao registrar presença.' });
         await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
     }
     if (jovem.status === 'EM DESCUMPRIMENTO') {
@@ -2174,11 +1530,7 @@ window.registrarPontoNaLinha = async function(jovemId) {
         jovem.status = 'REGULAR';
         jovem.dataDescumprimento = '';
         if (!jovem.observacoes) jovem.observacoes = [];
-        jovem.observacoes.push({
-            data: new Date().toISOString(),
-            profissional: estado.usuarioAtual?.nome || 'Sistema',
-            texto: '✅ Reativado para REGULAR ao registrar presença.'
-        });
+        jovem.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto: '✅ Reativado para REGULAR ao registrar presença.' });
         await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
     }
     const now = new Date();
@@ -2187,56 +1539,28 @@ window.registrarPontoNaLinha = async function(jovemId) {
     const hojeStr = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     let entradaAberta = null;
     for (let i = hist.length - 1; i >= 0; i--) {
-        if (hist[i].tipo === 'entrada') {
-            const eDia = new Date(new Date(hist[i].data).getFullYear(), new Date(hist[i].data).getMonth(), new Date(hist[i].data).getDate()).getTime();
-            if (eDia === hojeStr) { entradaAberta = hist[i]; break; }
-        }
-        if (hist[i].tipo === 'saida') {
-            const sDia = new Date(new Date(hist[i].data).getFullYear(), new Date(hist[i].data).getMonth(), new Date(hist[i].data).getDate()).getTime();
-            if (sDia === hojeStr) break;
-        }
+        if (hist[i].tipo === 'entrada') { const eDia = new Date(new Date(hist[i].data).getFullYear(), new Date(hist[i].data).getMonth(), new Date(hist[i].data).getDate()).getTime(); if (eDia === hojeStr) { entradaAberta = hist[i]; break; } }
+        if (hist[i].tipo === 'saida') { const sDia = new Date(new Date(hist[i].data).getFullYear(), new Date(hist[i].data).getMonth(), new Date(hist[i].data).getDate()).getTime(); if (sDia === hojeStr) break; }
     }
     if (entradaAberta) {
         if (jovem['MEDIDA'] === 'LA') {
             entradaAberta.horaSaida = now.toISOString();
-            hist.push({
-                data: now.toISOString(),
-                horas: 0,
-                tipo: 'saida',
-                observacao: 'Saída (LA)',
-                entradaReferencia: new Date(entradaAberta.data).getTime()
-            });
+            hist.push({ data: now.toISOString(), horas: 0, tipo: 'saida', observacao: 'Saída (LA)', entradaReferencia: new Date(entradaAberta.data).getTime() });
             alert(`✅ Saída LA registrada para ${jovem['NOME']}`);
         } else {
             const diffMs = now.getTime() - new Date(entradaAberta.data).getTime();
-            const horasReais = diffMs / (1000 * 60 * 60);
+            const horasReais = diffMs / (1000*60*60);
             const horasArredondadas = Math.round(horasReais * 4) / 4;
             entradaAberta.horas = parseFloat(horasArredondadas.toFixed(2));
             entradaAberta.horaSaida = now.toISOString();
-            hist.push({
-                data: now.toISOString(),
-                horas: 0,
-                tipo: 'saida',
-                observacao: '',
-                entradaReferencia: new Date(entradaAberta.data).getTime()
-            });
+            hist.push({ data: now.toISOString(), horas: 0, tipo: 'saida', observacao: '', entradaReferencia: new Date(entradaAberta.data).getTime() });
             alert(`✅ Saída registrada para ${jovem['NOME']} (${horasArredondadas.toFixed(2)}h)`);
         }
     } else {
-        hist.push({
-            data: now.toISOString(),
-            horas: 0,
-            tipo: 'entrada',
-            observacao: jovem['MEDIDA'] === 'LA' ? 'Entrada (LA)' : ''
-        });
+        hist.push({ data: now.toISOString(), horas: 0, tipo: 'entrada', observacao: jovem['MEDIDA'] === 'LA' ? 'Entrada (LA)' : '' });
         alert(`✅ Entrada registrada para ${jovem['NOME']}`);
     }
-    try {
-        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        await carregarTodosDados();
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); await carregarTodosDados(); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 async function registrarPontoDigital() {
@@ -2257,24 +1581,17 @@ async function registrarPontoDigital() {
 function abrirRegistroManual() {
     const select = document.getElementById('manualJovem');
     if (!select) return;
-    const jovensDisponiveis = estado.jovens.filter(j =>
-        j['MEDIDA'] !== 'Liberação' &&
-        j.status !== 'SUSPENSO' &&
-        j.status !== 'MEDIDA FINALIZADA'
-    );
+    const jovensDisponiveis = estado.jovens.filter(j => j['MEDIDA'] !== 'Liberação' && j.status !== 'SUSPENSO' && j.status !== 'MEDIDA FINALIZADA');
     if (jovensDisponiveis.length === 0) {
         alert('Não há jovens disponíveis.');
         select.innerHTML = '<option value="">Nenhum</option>';
     } else {
-        select.innerHTML = jovensDisponiveis
-            .sort((a, b) => (a['NOME'] || '').localeCompare(b['NOME'] || '', 'pt-BR'))
-            .map(j => `<option value="${j.id}">${j['NOME'] || j['REFERENCIA']} - ${j['MEDIDA'] || ''}</option>`)
-            .join('');
+        select.innerHTML = jovensDisponiveis.sort((a,b) => (a['NOME']||'').localeCompare(b['NOME']||'', 'pt-BR')).map(j => `<option value="${j.id}">${j['NOME']||j['REFERENCIA']} - ${j['MEDIDA']||''}</option>`).join('');
     }
     document.getElementById('modalRegistroManual').style.display = 'flex';
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    document.getElementById('manualDataHora').value = now.toISOString().slice(0, 16);
+    document.getElementById('manualDataHora').value = now.toISOString().slice(0,16);
 }
 
 async function salvarRegistroManual() {
@@ -2285,73 +1602,34 @@ async function salvarRegistroManual() {
     if (!jovemId || !dataEntrada) return alert('Selecione jovem e data/hora.');
     const jovem = estado.jovens.find(j => j.id === jovemId);
     if (!jovem) return;
-    if (jovem.status === 'SUSPENSO' || jovem.status === 'MEDIDA FINALIZADA' || jovem['MEDIDA'] === 'Liberação') {
-        return alert('Jovem não pode registrar ponto.');
-    }
+    if (jovem.status === 'SUSPENSO' || jovem.status === 'MEDIDA FINALIZADA' || jovem['MEDIDA'] === 'Liberação') return alert('Jovem não pode registrar ponto.');
     if (jovem.status === 'IRREGULAR') {
         if (!confirm('Reativar para REGULAR?')) return;
         jovem.status = 'REGULAR';
         if (!jovem.observacoes) jovem.observacoes = [];
-        jovem.observacoes.push({
-            data: new Date().toISOString(),
-            profissional: estado.usuarioAtual?.nome || 'Sistema',
-            texto: '✅ Reativado para REGULAR (registro manual).'
-        });
+        jovem.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto: '✅ Reativado para REGULAR (registro manual).' });
     }
     if (jovem.status === 'EM DESCUMPRIMENTO') {
         if (!confirm('Reativar para REGULAR?')) return;
         jovem.status = 'REGULAR';
         jovem.dataDescumprimento = '';
         if (!jovem.observacoes) jovem.observacoes = [];
-        jovem.observacoes.push({
-            data: new Date().toISOString(),
-            profissional: estado.usuarioAtual?.nome || 'Sistema',
-            texto: '✅ Reativado para REGULAR (registro manual).'
-        });
+        jovem.observacoes.push({ data: new Date().toISOString(), profissional: estado.usuarioAtual?.nome || 'Sistema', texto: '✅ Reativado para REGULAR (registro manual).' });
     }
     jovem.historicoFrequencia = jovem.historicoFrequencia || [];
     const dataEntradaDate = new Date(dataEntrada);
     if (jovem['MEDIDA'] === 'LA') {
-        jovem.historicoFrequencia.push({
-            data: dataEntradaDate.toISOString(),
-            horas: 0,
-            tipo: 'entrada',
-            observacao: obs || 'Registro manual (LA)'
-        });
-        const dataSaida = new Date(dataEntradaDate.getTime() + 30 * 60 * 1000);
-        jovem.historicoFrequencia.push({
-            data: dataSaida.toISOString(),
-            horas: 0,
-            tipo: 'saida',
-            observacao: 'Saída (LA)',
-            entradaReferencia: dataEntradaDate.getTime()
-        });
+        jovem.historicoFrequencia.push({ data: dataEntradaDate.toISOString(), horas: 0, tipo: 'entrada', observacao: obs || 'Registro manual (LA)' });
+        const dataSaida = new Date(dataEntradaDate.getTime() + 30*60*1000);
+        jovem.historicoFrequencia.push({ data: dataSaida.toISOString(), horas: 0, tipo: 'saida', observacao: 'Saída (LA)', entradaReferencia: dataEntradaDate.getTime() });
     } else {
-        jovem.historicoFrequencia.push({
-            data: dataEntradaDate.toISOString(),
-            horas: horas,
-            tipo: 'entrada',
-            observacao: obs || 'Registro manual'
-        });
+        jovem.historicoFrequencia.push({ data: dataEntradaDate.toISOString(), horas: horas, tipo: 'entrada', observacao: obs || 'Registro manual' });
         if (horas > 0) {
-            const dataSaida = new Date(dataEntradaDate.getTime() + horas * 60 * 60 * 1000);
-            jovem.historicoFrequencia.push({
-                data: dataSaida.toISOString(),
-                horas: 0,
-                tipo: 'saida',
-                observacao: '',
-                entradaReferencia: dataEntradaDate.getTime()
-            });
+            const dataSaida = new Date(dataEntradaDate.getTime() + horas*60*60*1000);
+            jovem.historicoFrequencia.push({ data: dataSaida.toISOString(), horas: 0, tipo: 'saida', observacao: '', entradaReferencia: dataEntradaDate.getTime() });
         }
     }
-    try {
-        await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem));
-        document.getElementById('modalRegistroManual').style.display = 'none';
-        await carregarTodosDados();
-        alert('✅ Registro salvo!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    try { await upstash('SET', `jovem:${jovem.id}`, JSON.stringify(jovem)); document.getElementById('modalRegistroManual').style.display = 'none'; await carregarTodosDados(); alert('✅ Registro salvo!'); } catch (err) { alert('Erro: ' + err.message); }
 }
 
 // ============================================================
@@ -2360,15 +1638,8 @@ async function salvarRegistroManual() {
 function renderizarJovensOficina() {
     const div = document.getElementById('listaJovensOficina');
     if (!div) return;
-    const jovens = estado.jovens.filter(j =>
-        j['MEDIDA'] !== 'Liberação' &&
-        j.status !== 'SUSPENSO' &&
-        j.status !== 'EM DESCUMPRIMENTO' &&
-        j.status !== 'MEDIDA FINALIZADA'
-    ).sort((a, b) => (a['NOME'] || '').localeCompare(b['NOME'] || '', 'pt-BR'));
-    div.innerHTML = jovens.map(j =>
-        `<label class="jovem-checkbox"><input type="checkbox" value="${j.id}"><span class="jovem-nome">${j['NOME'] || j['REFERENCIA']}</span></label>`
-    ).join('');
+    const jovens = estado.jovens.filter(j => j['MEDIDA'] !== 'Liberação' && j.status !== 'SUSPENSO' && j.status !== 'EM DESCUMPRIMENTO' && j.status !== 'MEDIDA FINALIZADA').sort((a,b) => (a['NOME']||'').localeCompare(b['NOME']||'', 'pt-BR'));
+    div.innerHTML = jovens.map(j => `<label class="jovem-checkbox"><input type="checkbox" value="${j.id}"><span class="jovem-nome">${j['NOME'] || j['REFERENCIA']}</span></label>`).join('');
 }
 
 window.filtrarJovensOficina = function() {
@@ -2398,24 +1669,13 @@ async function salvarOficina() {
                 const j = estado.jovens.find(x => x.id === jId);
                 if (j && j['MEDIDA'] !== 'LA' && j.status !== 'MEDIDA FINALIZADA') {
                     j.historicoFrequencia = j.historicoFrequencia || [];
-                    j.historicoFrequencia.push({
-                        data: new Date().toISOString(),
-                        horas: 4,
-                        tipo: 'entrada',
-                        observacao: `Oficina: ${conteudo}${isCurso ? ' (Curso Obrigatório)' : ''}`
-                    });
+                    j.historicoFrequencia.push({ data: new Date().toISOString(), horas: 4, tipo: 'entrada', observacao: `Oficina: ${conteudo}${isCurso ? ' (Curso Obrigatório)' : ''}` });
                     await upstash('SET', `jovem:${j.id}`, JSON.stringify(j));
                 }
             }
         }
-        renderizarOficinas();
-        document.getElementById('oficinaConteudo').value = '';
-        document.querySelectorAll('#listaJovensOficina input').forEach(cb => cb.checked = false);
-        alert('✅ Oficina salva!');
-        await carregarTodosDados();
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+        renderizarOficinas(); document.getElementById('oficinaConteudo').value = ''; document.querySelectorAll('#listaJovensOficina input').forEach(cb => cb.checked = false); alert('✅ Oficina salva!'); await carregarTodosDados();
+    } catch (err) { alert('Erro: ' + err.message); }
 }
 
 function renderizarOficinas() {
@@ -2424,27 +1684,8 @@ function renderizarOficinas() {
     if (!div) return;
     div.innerHTML = estado.oficinas.slice().reverse().map(o => {
         const dataFmt = new Date(o.data).toLocaleDateString('pt-BR');
-        const jovensNomes = (o.jovensIds || []).map(id => {
-            const j = estado.jovens.find(x => x.id === id);
-            return j ? (j['NOME'] || j['REFERENCIA']) : 'Desconhecido';
-        });
-        return `<div class="oficina-card ${o.reverte ? 'reverte' : ''}">
-            <div class="info">
-                <div class="titulo">📅 ${dataFmt} - ${o.periodo}</div>
-                <div class="detalhes">
-                    <span>${o.conteudo}</span>
-                    <span>👥 ${jovensNomes.length} jovens</span>
-                </div>
-                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">
-                    ${o.reverte ? '<span class="tag tag-green">✅ Benefício social</span>' : ''}
-                    ${o.isCurso ? '<span class="tag tag-blue">📚 Curso</span>' : ''}
-                    ${jovensNomes.map(n => `<span class="tag">${n}</span>`).join('')}
-                </div>
-            </div>
-            <div>
-                <button onclick="abrirModalExclusao('oficina','${o.id}', '${o.conteudo}')" class="btn-sm btn-sm-danger">🗑️</button>
-            </div>
-        </div>`;
+        const jovensNomes = (o.jovensIds || []).map(id => { const j = estado.jovens.find(x => x.id === id); return j ? (j['NOME'] || j['REFERENCIA']) : 'Desconhecido'; });
+        return `<div class="oficina-card ${o.reverte ? 'reverte' : ''}"><div class="info"><div class="titulo">📅 ${dataFmt} - ${o.periodo}</div><div class="detalhes"><span>${o.conteudo}</span><span>👥 ${jovensNomes.length} jovens</span></div><div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">${o.reverte ? '<span class="tag tag-green">✅ Benefício social</span>' : ''}${o.isCurso ? '<span class="tag tag-blue">📚 Curso</span>' : ''}${jovensNomes.map(n => `<span class="tag">${n}</span>`).join('')}</div></div><div><button onclick="abrirModalExclusao('oficina','${o.id}', '${o.conteudo}')" class="btn-sm btn-sm-danger">🗑️</button></div></div>`;
     }).join('');
 }
 
@@ -2459,27 +1700,12 @@ async function salvarPlanejamento() {
     const materiais = document.getElementById('planMats').value.trim();
     const reverte = document.getElementById('planReverte').checked;
     if (!data || !titulo) return alert('Preencha data e título.');
-    const plan = {
-        id: 'plan_' + Date.now(),
-        data,
-        periodo,
-        titulo,
-        descricao,
-        materiais,
-        reverte,
-        realizada: false,
-        dataCriacao: new Date().toISOString()
-    };
+    const plan = { id: 'plan_' + Date.now(), data, periodo, titulo, descricao, materiais, reverte, realizada: false, dataCriacao: new Date().toISOString() };
     await upstash('SET', `planejamento:${plan.id}`, JSON.stringify(plan));
     await upstash('SADD', 'planejamentos:all', plan.id);
     estado.planejamentos.push(plan);
-    document.getElementById('planData').value = '';
-    document.getElementById('planTitulo').value = '';
-    document.getElementById('planDesc').value = '';
-    document.getElementById('planMats').value = '';
-    document.getElementById('planReverte').checked = false;
-    renderizarPlanejamentos();
-    alert('✅ Planejamento salvo!');
+    document.getElementById('planData').value = ''; document.getElementById('planTitulo').value = ''; document.getElementById('planDesc').value = ''; document.getElementById('planMats').value = ''; document.getElementById('planReverte').checked = false;
+    renderizarPlanejamentos(); alert('✅ Planejamento salvo!');
 }
 
 window.converterPlanejamentoEmOficina = function(planId) {
@@ -2490,10 +1716,7 @@ window.converterPlanejamentoEmOficina = function(planId) {
     document.getElementById('oficinaConteudo').value = `${plan.titulo}\n${plan.descricao || ''}`;
     document.getElementById('oficinaReverte').checked = plan.reverte;
     navigateTo('pageOficinas');
-    plan.realizada = true;
-    upstash('SET', `planejamento:${plan.id}`, JSON.stringify(plan));
-    alert('✅ Planejamento convertido!');
-    renderizarPlanejamentos();
+    plan.realizada = true; upstash('SET', `planejamento:${plan.id}`, JSON.stringify(plan)); alert('✅ Planejamento convertido!'); renderizarPlanejamentos();
 };
 
 function renderizarPlanejamentos() {
@@ -2531,46 +1754,24 @@ function renderizarUsuarios() {
     const podeConfigurarHorarios = ['gestor','desenvolvedor','admin'].includes(estado.usuarioAtual?.nivel);
     const podeAlterarNivel = ['gestor','desenvolvedor','admin'].includes(estado.usuarioAtual?.nivel);
     const usuariosAtivos = estado.usuarios.filter(u => u.status === 'ativo');
-    if (usuariosAtivos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#6b7280;">Nenhum usuário ativo.</td></tr>';
-        return;
-    }
+    if (usuariosAtivos.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#6b7280;">Nenhum usuário ativo.</td></tr>'; return; }
     tbody.innerHTML = usuariosAtivos.map(u => {
         const isDesenvolvedor = u.nivel === 'desenvolvedor' || u.nivel === 'admin';
         const isProprioUsuario = u.id === estado.usuarioAtual?.id;
         let botoesHorarios = '';
         if (podeConfigurarHorarios) {
-            if (isProprioUsuario) {
-                botoesHorarios = `<button onclick="abrirModalHorarios('${u.id}')" class="btn-sm btn-sm-primary">👤 Meu Horário</button>`;
-            } else if (isDesenvolvedor) {
-                botoesHorarios = `<span style="font-size:0.65rem; color:#10b981;">🔓 Irrestrito</span>`;
-            } else {
-                botoesHorarios = `<button onclick="abrirModalHorarios('${u.id}')" class="btn-sm btn-sm-warning">⏱️ Horários</button>`;
-            }
+            if (isProprioUsuario) botoesHorarios = `<button onclick="abrirModalHorarios('${u.id}')" class="btn-sm btn-sm-primary">👤 Meu Horário</button>`;
+            else if (isDesenvolvedor) botoesHorarios = `<span style="font-size:0.65rem; color:#10b981;">🔓 Irrestrito</span>`;
+            else botoesHorarios = `<button onclick="abrirModalHorarios('${u.id}')" class="btn-sm btn-sm-warning">⏱️ Horários</button>`;
         }
         let botoesNivel = '';
         if (podeAlterarNivel && !isProprioUsuario && !isDesenvolvedor) {
             const niveis = ['gestor','tecnico','oficineiro','autoridade','jovem'];
-            botoesNivel = `
-                <select onchange="alterarNivelUsuario('${u.id}', this.value)" style="padding:2px 6px; font-size:0.7rem; border:1px solid #d1d9e6; border-radius:4px;">
-                    <option value="">Alterar</option>
-                    ${niveis.map(n => `<option value="${n}" ${u.nivel === n ? 'selected' : ''}>${NIVEIS_ACESSO[n]?.nome || n}</option>`).join('')}
-                </select>
-            `;
+            botoesNivel = `<select onchange="alterarNivelUsuario('${u.id}', this.value)" style="padding:2px 6px; font-size:0.7rem; border:1px solid #d1d9e6; border-radius:4px;"><option value="">Alterar</option>${niveis.map(n => `<option value="${n}" ${u.nivel === n ? 'selected' : ''}>${NIVEIS_ACESSO[n]?.nome || n}</option>`).join('')}</select>`;
         }
         const podeExcluir = NIVEIS_COM_STATUS.includes(estado.usuarioAtual?.nivel) && !isProprioUsuario;
         const botaoExcluir = podeExcluir ? `<button onclick="abrirModalExclusao('usuario', '${u.id}', '${u.nome}')" class="btn-sm btn-sm-danger">🗑️</button>` : '';
-        return `<tr>
-            <td>${u.nome || '-'}</td>
-            <td>${u.email || '-'}</td>
-            <td>${NIVEIS_ACESSO[u.nivel]?.nome || u.nivel || '-'} ${isDesenvolvedor ? '🛡️' : ''}</td>
-            <td><span style="color:#10b981;">${u.status}</span></td>
-            <td style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
-                ${botoesHorarios}
-                ${botoesNivel}
-                ${botaoExcluir}
-            </td>
-        </tr>`;
+        return `<tr><td>${u.nome||'-'}</td><td>${u.email||'-'}</td><td>${NIVEIS_ACESSO[u.nivel]?.nome||u.nivel||'-'} ${isDesenvolvedor ? '🛡️' : ''}</td><td><span style="color:#10b981;">${u.status}</span></td><td style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">${botoesHorarios} ${botoesNivel} ${botaoExcluir}</td></tr>`;
     }).join('');
 }
 
@@ -2579,61 +1780,26 @@ window.alterarNivelUsuario = async function(userId, novoNivel) {
     const user = estado.usuarios.find(u => u.id === userId);
     if (!user) return alert('Usuário não encontrado.');
     if (user.id === estado.usuarioAtual.id) return alert('Não pode alterar seu próprio nível.');
-    if (user.nivel === 'desenvolvedor' && estado.usuarioAtual.nivel !== 'desenvolvedor') {
-        return alert('Apenas desenvolvedor pode alterar outro desenvolvedor.');
-    }
+    if (user.nivel === 'desenvolvedor' && estado.usuarioAtual.nivel !== 'desenvolvedor') return alert('Apenas desenvolvedor pode alterar outro desenvolvedor.');
     if (!confirm(`Alterar nível de ${user.nome} para "${novoNivel}"?`)) return;
     const nivelAnterior = user.nivel;
     user.nivel = novoNivel;
-    try {
-        await upstash('SET', `user:${user.id}`, JSON.stringify(user));
-        await carregarTodosDados();
-        alert(`✅ Nível alterado: ${user.nome} ${nivelAnterior} → ${novoNivel}`);
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    try { await upstash('SET', `user:${user.id}`, JSON.stringify(user)); await carregarTodosDados(); alert(`✅ Nível alterado: ${user.nome} ${nivelAnterior} → ${novoNivel}`); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 function renderizarPendentes() {
     const tbody = document.getElementById('listaPendentes');
     if (!tbody) return;
     const pendentes = estado.usuarios.filter(u => u.status !== 'ativo');
-    tbody.innerHTML = pendentes.map(u => `
-        <tr>
-            <td>${u.nome || '-'}</td>
-            <td>${u.email || '-'}</td>
-            <td>${NIVEIS_ACESSO[u.nivel]?.nome || u.nivel || '-'}</td>
-            <td>
-                ${NIVEIS_COM_STATUS.includes(estado.usuarioAtual?.nivel) ? `
-                    <button onclick="aprovarUsuario('${u.id}', '${u.nivel}')" class="btn-sm btn-sm-success">✅ Aprovar</button>
-                    <button onclick="abrirModalExclusao('usuario', '${u.id}', '${u.nome}')" class="btn-sm btn-sm-danger">🗑️ Rejeitar</button>
-                ` : '<span style="color:#6b7280;">Aguardando</span>'}
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = pendentes.map(u => `<tr><td>${u.nome||'-'}</td><td>${u.email||'-'}</td><td>${NIVEIS_ACESSO[u.nivel]?.nome||u.nivel||'-'}</td><td>${NIVEIS_COM_STATUS.includes(estado.usuarioAtual?.nivel) ? `<button onclick="aprovarUsuario('${u.id}', '${u.nivel}')" class="btn-sm btn-sm-success">✅ Aprovar</button> <button onclick="abrirModalExclusao('usuario', '${u.id}', '${u.nome}')" class="btn-sm btn-sm-danger">🗑️ Rejeitar</button>` : '<span style="color:#6b7280;">Aguardando</span>'}</td></tr>`).join('');
 }
 
 async function salvarNovoUsuario() {
     const nivel = document.getElementById('userNivel').value;
     if (nivel === 'desenvolvedor') return alert('Não é possível cadastrar Desenvolvedor.');
-    const user = {
-        id: 'usr_' + Date.now(),
-        nome: document.getElementById('userNome').value.trim(),
-        email: document.getElementById('userEmail').value.trim(),
-        senha: document.getElementById('userSenha').value.trim(),
-        nivel: nivel,
-        status: 'ativo'
-    };
+    const user = { id: 'usr_' + Date.now(), nome: document.getElementById('userNome').value.trim(), email: document.getElementById('userEmail').value.trim(), senha: document.getElementById('userSenha').value.trim(), nivel, status: 'ativo' };
     if (!user.nome || !user.email || !user.senha) return alert('Preencha todos os campos.');
-    try {
-        await upstash('SET', `user:${user.id}`, JSON.stringify(user));
-        await upstash('SADD', 'users:all', user.id);
-        estado.usuarios.push(user);
-        renderizarUsuarios();
-        ['userNome', 'userEmail', 'userSenha'].forEach(id => document.getElementById(id).value = '');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    try { await upstash('SET', `user:${user.id}`, JSON.stringify(user)); await upstash('SADD', 'users:all', user.id); estado.usuarios.push(user); renderizarUsuarios(); ['userNome','userEmail','userSenha'].forEach(id => document.getElementById(id).value = ''); } catch (err) { alert('Erro: ' + err.message); }
 }
 
 window.aprovarUsuario = async function(id, nivel) {
@@ -2642,41 +1808,23 @@ window.aprovarUsuario = async function(id, nivel) {
     if (nivel === 'jovem') {
         estado._userParaVincular = user;
         const select = document.getElementById('selectVincularJovem');
-        select.innerHTML = '<option value="">Selecione o Jovem...</option>' +
-            estado.jovens.map(j => `<option value="${j['CPF'] || j.id}">${j['NOME'] || j['REFERENCIA']} (CPF: ${j['CPF'] || 'Não informado'})</option>`).join('');
+        select.innerHTML = '<option value="">Selecione o Jovem...</option>' + estado.jovens.map(j => `<option value="${j['CPF'] || j.id}">${j['NOME'] || j['REFERENCIA']} (CPF: ${j['CPF'] || 'Não informado'})</option>`).join('');
         document.getElementById('modalVincularJovem').style.display = 'flex';
     } else {
         user.status = 'ativo';
-        try {
-            await upstash('SET', `user:${user.id}`, JSON.stringify(user));
-            await carregarTodosDados();
-            alert('✅ Usuário aprovado!');
-        } catch (err) {
-            alert('Erro: ' + err.message);
-        }
+        try { await upstash('SET', `user:${user.id}`, JSON.stringify(user)); await carregarTodosDados(); alert('✅ Usuário aprovado!'); } catch (err) { alert('Erro: ' + err.message); }
     }
 };
 
-function fecharModalVincular() {
-    document.getElementById('modalVincularJovem').style.display = 'none';
-    estado._userParaVincular = null;
-}
+function fecharModalVincular() { document.getElementById('modalVincularJovem').style.display = 'none'; estado._userParaVincular = null; }
 
 async function salvarVinculoJovem() {
     const cpfOuId = document.getElementById('selectVincularJovem').value;
     if (!cpfOuId) return alert('Selecione um jovem.');
     const user = estado._userParaVincular;
     if (!user) return;
-    user.cpf = cpfOuId;
-    user.status = 'ativo';
-    try {
-        await upstash('SET', `user:${user.id}`, JSON.stringify(user));
-        fecharModalVincular();
-        await carregarTodosDados();
-        alert('✅ Jovem vinculado e aprovado!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    user.cpf = cpfOuId; user.status = 'ativo';
+    try { await upstash('SET', `user:${user.id}`, JSON.stringify(user)); fecharModalVincular(); await carregarTodosDados(); alert('✅ Jovem vinculado e aprovado!'); } catch (err) { alert('Erro: ' + err.message); }
 }
 
 // ============================================================
@@ -2689,31 +1837,8 @@ window.abrirModalHorarios = function(id) {
     document.getElementById('nomeUserHorario').textContent = u.nome;
     const dias = ['segunda','terca','quarta','quinta','sexta'];
     const cfg = u.horarios || {};
-    document.getElementById('gridHorarios').innerHTML = `
-        <div style="background:#f0fdf4; padding:8px 12px; border-radius:8px; margin-bottom:12px; border:1px solid #86efac;">
-            <strong>👤 ${u.nome}</strong>
-            <span style="margin-left:10px; font-size:0.75rem; color:#6b7280;">(${NIVEIS_ACESSO[u.nivel]?.nome || u.nivel})</span>
-        </div>
-        <label style="font-weight:600; display:block; margin-bottom:8px;">
-            <input type="checkbox" id="horariosAtivosGlobais" ${u.horariosConfigurados ? 'checked' : ''}>
-            Limitar Acesso por Horário
-        </label>
-        <div id="diasContainer" style="display:${u.horariosConfigurados ? 'block' : 'none'}; margin-top:10px;">
-            ${dias.map(d => `
-                <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px; flex-wrap:wrap; background:#f8fafc; padding:4px 10px; border-radius:6px;">
-                    <input type="checkbox" id="chk_${d}" ${cfg[d]?.ativo ? 'checked' : ''}>
-                    <span style="width:70px; text-transform:capitalize; font-weight:500;">${d}</span>
-                    <input type="time" id="ini_${d}" value="${cfg[d]?.inicio || '08:00'}" style="padding:4px 8px; border:1px solid #d1d9e6; border-radius:4px;">
-                    <span>até</span>
-                    <input type="time" id="fim_${d}" value="${cfg[d]?.fim || '17:00'}" style="padding:4px 8px; border:1px solid #d1d9e6; border-radius:4px;">
-                </div>
-            `).join('')}
-        </div>
-        <p style="font-size:0.7rem; color:#6b7280; margin-top:6px;">* Desenvolvedores têm acesso irrestrito.</p>
-    `;
-    document.getElementById('horariosAtivosGlobais').onchange = (e) => {
-        document.getElementById('diasContainer').style.display = e.target.checked ? 'block' : 'none';
-    };
+    document.getElementById('gridHorarios').innerHTML = `<div style="background:#f0fdf4; padding:8px 12px; border-radius:8px; margin-bottom:12px; border:1px solid #86efac;"><strong>👤 ${u.nome}</strong> <span style="margin-left:10px; font-size:0.75rem; color:#6b7280;">(${NIVEIS_ACESSO[u.nivel]?.nome||u.nivel})</span></div><label style="font-weight:600; display:block; margin-bottom:8px;"><input type="checkbox" id="horariosAtivosGlobais" ${u.horariosConfigurados ? 'checked' : ''}> Limitar Acesso por Horário</label><div id="diasContainer" style="display:${u.horariosConfigurados ? 'block' : 'none'}; margin-top:10px;">${dias.map(d => `<div style="display:flex; gap:10px; align-items:center; margin-bottom:6px; flex-wrap:wrap; background:#f8fafc; padding:4px 10px; border-radius:6px;"><input type="checkbox" id="chk_${d}" ${cfg[d]?.ativo ? 'checked' : ''}> <span style="width:70px; text-transform:capitalize; font-weight:500;">${d}</span> <input type="time" id="ini_${d}" value="${cfg[d]?.inicio || '08:00'}" style="padding:4px 8px; border:1px solid #d1d9e6; border-radius:4px;"> até <input type="time" id="fim_${d}" value="${cfg[d]?.fim || '17:00'}" style="padding:4px 8px; border:1px solid #d1d9e6; border-radius:4px;"></div>`).join('')}</div><p style="font-size:0.7rem; color:#6b7280; margin-top:6px;">* Desenvolvedores têm acesso irrestrito.</p>`;
+    document.getElementById('horariosAtivosGlobais').onchange = (e) => { document.getElementById('diasContainer').style.display = e.target.checked ? 'block' : 'none'; };
     document.getElementById('modalHorarios').style.display = 'flex';
 };
 
@@ -2723,20 +1848,9 @@ window.salvarHorariosUsuario = async function() {
     u.horariosConfigurados = document.getElementById('horariosAtivosGlobais').checked;
     u.horarios = {};
     ['segunda','terca','quarta','quinta','sexta'].forEach(d => {
-        u.horarios[d] = {
-            ativo: document.getElementById(`chk_${d}`).checked,
-            inicio: document.getElementById(`ini_${d}`).value,
-            fim: document.getElementById(`fim_${d}`).value
-        };
+        u.horarios[d] = { ativo: document.getElementById(`chk_${d}`).checked, inicio: document.getElementById(`ini_${d}`).value, fim: document.getElementById(`fim_${d}`).value };
     });
-    try {
-        await upstash('SET', `user:${u.id}`, JSON.stringify(u));
-        document.getElementById('modalHorarios').style.display = 'none';
-        alert('✅ Horários salvos!');
-        await carregarTodosDados();
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    try { await upstash('SET', `user:${u.id}`, JSON.stringify(u)); document.getElementById('modalHorarios').style.display = 'none'; alert('✅ Horários salvos!'); await carregarTodosDados(); } catch (err) { alert('Erro: ' + err.message); }
 };
 
 // ============================================================
@@ -2749,28 +1863,13 @@ function renderizarMensagens() {
     if (destinatario) {
         const usuariosAtivos = estado.usuarios.filter(u => u.status === 'ativo' && u.id !== estado.usuarioAtual?.id);
         const autoridades = usuariosAtivos.filter(u => u.nivel === 'autoridade' || u.nivel === 'gestor');
-        destinatario.innerHTML = '<option value="">Selecione...</option>' +
-            autoridades.map(u => `<option value="${u.id}">${u.nome} (${NIVEIS_ACESSO[u.nivel]?.nome || u.nivel})</option>`).join('');
+        destinatario.innerHTML = '<option value="">Selecione...</option>' + autoridades.map(u => `<option value="${u.id}">${u.nome} (${NIVEIS_ACESSO[u.nivel]?.nome||u.nivel})</option>`).join('');
     }
-    const mensagens = estado.mensagens
-        .filter(m => m.para === estado.usuarioAtual?.id || m.de === estado.usuarioAtual?.id)
-        .sort((a, b) => new Date(b.data) - new Date(a.data));
+    const mensagens = estado.mensagens.filter(m => m.para === estado.usuarioAtual?.id || m.de === estado.usuarioAtual?.id).sort((a,b) => new Date(b.data) - new Date(a.data));
     div.innerHTML = mensagens.length > 0 ? mensagens.map(m => {
         const remetente = estado.usuarios.find(u => u.id === m.de);
         const isParaMim = m.para === estado.usuarioAtual?.id;
-        return `
-            <div style="background:${isParaMim ? '#eff6ff' : '#f8fafc'}; border-radius:8px; padding:10px 14px; margin-bottom:6px; border-left:4px solid ${isParaMim ? '#3b82f6' : '#6c757d'};">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                    <div>
-                        <strong>${remetente?.nome || 'Sistema'}</strong>
-                        <span style="font-size:0.65rem; color:#6b7280; margin-left:8px;">${new Date(m.data).toLocaleString('pt-BR')}</span>
-                    </div>
-                    <span style="font-size:0.65rem; color:#6b7280;">${isParaMim ? '📩 Recebida' : '📤 Enviada'}</span>
-                </div>
-                <div style="font-weight:500; margin-top:4px;">${m.assunto}</div>
-                <div style="color:#475569; margin-top:4px;">${m.texto}</div>
-            </div>
-        `;
+        return `<div style="background:${isParaMim ? '#eff6ff' : '#f8fafc'}; border-radius:8px; padding:10px 14px; margin-bottom:6px; border-left:4px solid ${isParaMim ? '#3b82f6' : '#6c757d'};"><div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;"><div><strong>${remetente?.nome || 'Sistema'}</strong><span style="font-size:0.65rem; color:#6b7280; margin-left:8px;">${new Date(m.data).toLocaleString('pt-BR')}</span></div><span style="font-size:0.65rem; color:#6b7280;">${isParaMim ? '📩 Recebida' : '📤 Enviada'}</span></div><div style="font-weight:500; margin-top:4px;">${m.assunto}</div><div style="color:#475569; margin-top:4px;">${m.texto}</div></div>`;
     }).join('') : '<p style="color:#6b7280; text-align:center; padding:1rem;">Nenhuma mensagem.</p>';
 }
 
@@ -2779,26 +1878,8 @@ async function enviarMensagem() {
     const assunto = document.getElementById('msgAssunto').value.trim();
     const texto = document.getElementById('msgTexto').value.trim();
     if (!para || !assunto || !texto) return alert('Preencha todos os campos.');
-    const msg = {
-        id: 'msg_' + Date.now(),
-        de: estado.usuarioAtual.id,
-        para: para,
-        assunto: assunto,
-        texto: texto,
-        data: new Date().toISOString(),
-        lida: false
-    };
-    try {
-        await upstash('SET', `mensagem:${msg.id}`, JSON.stringify(msg));
-        await upstash('SADD', 'mensagens:all', msg.id);
-        estado.mensagens.push(msg);
-        document.getElementById('msgAssunto').value = '';
-        document.getElementById('msgTexto').value = '';
-        renderizarMensagens();
-        alert('✅ Mensagem enviada!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    const msg = { id: 'msg_' + Date.now(), de: estado.usuarioAtual.id, para, assunto, texto, data: new Date().toISOString(), lida: false };
+    try { await upstash('SET', `mensagem:${msg.id}`, JSON.stringify(msg)); await upstash('SADD', 'mensagens:all', msg.id); estado.mensagens.push(msg); document.getElementById('msgAssunto').value = ''; document.getElementById('msgTexto').value = ''; renderizarMensagens(); alert('✅ Mensagem enviada!'); } catch (err) { alert('Erro: ' + err.message); }
 }
 
 // ============================================================
@@ -2807,44 +1888,14 @@ async function enviarMensagem() {
 function renderizarProfissionais() {
     const div = document.getElementById('listaProfissionais');
     if (!div) return;
-    div.innerHTML = estado.profissionais.map(p => `
-        <div style="background:#f8fafc; border-radius:12px; padding:10px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; border-left:4px solid #2c3e66;">
-            <div>
-                <strong>${p.nome || 'Sem nome'}</strong>
-                ${p.funcao ? `<span style="color:#6b7280; margin-left:8px;">${p.funcao}</span>` : ''}
-                ${p.registro ? `<span style="font-size:0.7rem; color:#6b7280; margin-left:8px;">Reg: ${p.registro}</span>` : ''}
-                ${p.numero ? `<span style="font-size:0.7rem; color:#6b7280; margin-left:8px;">Nº ${p.numero}</span>` : ''}
-            </div>
-            <div>
-                <button onclick="abrirModalExclusao('profissional', '${p.id}', '${p.nome}')" class="btn-sm btn-sm-danger">🗑️</button>
-            </div>
-        </div>
-    `).join('') || '<p style="color:#6b7280; text-align:center; padding:1rem;">Nenhum profissional cadastrado.</p>';
+    div.innerHTML = estado.profissionais.map(p => `<div style="background:#f8fafc; border-radius:12px; padding:10px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; border-left:4px solid #2c3e66;"><div><strong>${p.nome || 'Sem nome'}</strong>${p.funcao ? `<span style="color:#6b7280; margin-left:8px;">${p.funcao}</span>` : ''}${p.registro ? `<span style="font-size:0.7rem; color:#6b7280; margin-left:8px;">Reg: ${p.registro}</span>` : ''}${p.numero ? `<span style="font-size:0.7rem; color:#6b7280; margin-left:8px;">Nº ${p.numero}</span>` : ''}</div><div><button onclick="abrirModalExclusao('profissional', '${p.id}', '${p.nome}')" class="btn-sm btn-sm-danger">🗑️</button></div></div>`).join('') || '<p style="color:#6b7280; text-align:center; padding:1rem;">Nenhum profissional cadastrado.</p>';
 }
 
 async function salvarProfissional() {
     const nome = document.getElementById('profNome').value.trim();
     if (!nome) return alert('Preencha o nome.');
-    const profissional = {
-        id: 'prof_' + Date.now(),
-        nome: nome,
-        funcao: document.getElementById('profFuncao').value.trim(),
-        registro: document.getElementById('profRegistro').value.trim(),
-        numero: document.getElementById('profNumero').value.trim()
-    };
-    try {
-        await upstash('SET', `profissional:${profissional.id}`, JSON.stringify(profissional));
-        await upstash('SADD', 'profissionais:all', profissional.id);
-        estado.profissionais.push(profissional);
-        document.getElementById('profNome').value = '';
-        document.getElementById('profFuncao').value = '';
-        document.getElementById('profRegistro').value = '';
-        document.getElementById('profNumero').value = '';
-        renderizarProfissionais();
-        alert('✅ Profissional salvo!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    const profissional = { id: 'prof_' + Date.now(), nome, funcao: document.getElementById('profFuncao').value.trim(), registro: document.getElementById('profRegistro').value.trim(), numero: document.getElementById('profNumero').value.trim() };
+    try { await upstash('SET', `profissional:${profissional.id}`, JSON.stringify(profissional)); await upstash('SADD', 'profissionais:all', profissional.id); estado.profissionais.push(profissional); document.getElementById('profNome').value = ''; document.getElementById('profFuncao').value = ''; document.getElementById('profRegistro').value = ''; document.getElementById('profNumero').value = ''; renderizarProfissionais(); alert('✅ Profissional salvo!'); } catch (err) { alert('Erro: ' + err.message); }
 }
 
 // ============================================================
@@ -2860,34 +1911,15 @@ window.executarExclusao = async function() {
     if (!estado.exclusaoPendente) return;
     const { tipo, id } = estado.exclusaoPendente;
     try {
-        if (tipo === 'jovem') {
-            await upstash('DEL', `jovem:${id}`);
-            await upstash('SREM', 'jovens:all', id);
-            estado.jovens = estado.jovens.filter(j => j.id !== id);
-            estado.selecionadosLote.delete(id);
-        } else if (tipo === 'usuario') {
-            await upstash('DEL', `user:${id}`);
-            await upstash('SREM', 'users:all', id);
-            estado.usuarios = estado.usuarios.filter(u => u.id !== id);
-        } else if (tipo === 'oficina') {
-            await upstash('DEL', `oficina:${id}`);
-            await upstash('SREM', 'oficinas:all', id);
-            estado.oficinas = estado.oficinas.filter(o => o.id !== id);
-        } else if (tipo === 'planejamento') {
-            await upstash('DEL', `planejamento:${id}`);
-            await upstash('SREM', 'planejamentos:all', id);
-            estado.planejamentos = estado.planejamentos.filter(p => p.id !== id);
-        } else if (tipo === 'profissional') {
-            await upstash('DEL', `profissional:${id}`);
-            await upstash('SREM', 'profissionais:all', id);
-            estado.profissionais = estado.profissionais.filter(p => p.id !== id);
-        }
+        if (tipo === 'jovem') { await upstash('DEL', `jovem:${id}`); await upstash('SREM', 'jovens:all', id); estado.jovens = estado.jovens.filter(j => j.id !== id); estado.selecionadosLote.delete(id); }
+        else if (tipo === 'usuario') { await upstash('DEL', `user:${id}`); await upstash('SREM', 'users:all', id); estado.usuarios = estado.usuarios.filter(u => u.id !== id); }
+        else if (tipo === 'oficina') { await upstash('DEL', `oficina:${id}`); await upstash('SREM', 'oficinas:all', id); estado.oficinas = estado.oficinas.filter(o => o.id !== id); }
+        else if (tipo === 'planejamento') { await upstash('DEL', `planejamento:${id}`); await upstash('SREM', 'planejamentos:all', id); estado.planejamentos = estado.planejamentos.filter(p => p.id !== id); }
+        else if (tipo === 'profissional') { await upstash('DEL', `profissional:${id}`); await upstash('SREM', 'profissionais:all', id); estado.profissionais = estado.profissionais.filter(p => p.id !== id); }
         document.getElementById('modalConfirmExclusao').style.display = 'none';
         await carregarTodosDados();
         alert('✅ Registro excluído!');
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    } catch (err) { alert('Erro: ' + err.message); }
 };
 
 // ============================================================
@@ -2898,15 +1930,7 @@ async function salvarNovaSenha() {
     const s2 = document.getElementById('confirmarNovaSenhaInput').value;
     if (!s1 || s1.length < 6) return alert('Mínimo 6 caracteres.');
     if (s1 !== s2) return alert('Senhas não coincidem.');
-    try {
-        estado.usuarioAtual.senha = s1;
-        await upstash('SET', `user:${estado.usuarioAtual.id}`, JSON.stringify(estado.usuarioAtual));
-        alert('Senha alterada!');
-        document.getElementById('novaSenhaInput').value = '';
-        document.getElementById('confirmarNovaSenhaInput').value = '';
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    try { estado.usuarioAtual.senha = s1; await upstash('SET', `user:${estado.usuarioAtual.id}`, JSON.stringify(estado.usuarioAtual)); alert('Senha alterada!'); document.getElementById('novaSenhaInput').value = ''; document.getElementById('confirmarNovaSenhaInput').value = ''; } catch (err) { alert('Erro: ' + err.message); }
 }
 
 async function carregarLogo() {
@@ -2914,15 +1938,10 @@ async function carregarLogo() {
         const logoBase64 = await upstash('GET', 'config:logo');
         if (logoBase64) {
             const logoLogin = document.getElementById('logoLogin');
-            if (logoLogin) {
-                logoLogin.src = logoBase64;
-                logoLogin.style.display = 'block';
-            }
+            if (logoLogin) { logoLogin.src = logoBase64; logoLogin.style.display = 'block'; }
             estado._logoBase64 = logoBase64;
         }
-    } catch (e) {
-        console.error('Erro logo', e);
-    }
+    } catch (e) { console.error('Erro logo', e); }
 }
 
 async function salvarLogo() {
@@ -2932,16 +1951,11 @@ async function salvarLogo() {
         const base64 = await fileToBase64(fileInput.files[0]);
         await upstash('SET', 'config:logo', base64);
         const logoLogin = document.getElementById('logoLogin');
-        if (logoLogin) {
-            logoLogin.src = base64;
-            logoLogin.style.display = 'block';
-        }
+        if (logoLogin) { logoLogin.src = base64; logoLogin.style.display = 'block'; }
         estado._logoBase64 = base64;
         alert('Logo atualizado!');
         fileInput.value = '';
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
+    } catch (err) { alert('Erro: ' + err.message); }
 }
 
 // ============================================================
@@ -2951,66 +1965,21 @@ function renderizarDashboardJovem() {
     const cards = document.getElementById('jovemInfoCards');
     const freqDiv = document.getElementById('jovemFrequencia');
     if (!cards || !freqDiv) return;
-    if (estado.jovens.length === 0) {
-        cards.innerHTML = '<p style="color:#6b7280;">Nenhum dado.</p>';
-        freqDiv.innerHTML = '';
-        return;
-    }
+    if (estado.jovens.length === 0) { cards.innerHTML = '<p style="color:#6b7280;">Nenhum dado.</p>'; freqDiv.innerHTML = ''; return; }
     const jovem = estado.jovens[0];
     if (jovem['MEDIDA'] === 'LA') {
         const acoes = jovem.acoesLA || [];
         const concluidas = acoes.filter(a => a.realizado).length;
         const progresso = acoes.length > 0 ? ((concluidas / acoes.length) * 100).toFixed(0) : 0;
         const profissional = estado.usuarios.find(u => u.id === jovem.profissionalLA);
-        cards.innerHTML = `
-            <div class="card"><h4>Nome</h4><p>${jovem['NOME'] || '-'}</p></div>
-            <div class="card"><h4>Medida</h4><p>LA</p></div>
-            <div class="card"><h4>Ações Concluídas</h4><p style="font-size:1.3rem; color:#10b981;">${concluidas}/${acoes.length}</p></div>
-            <div class="card"><h4>Progresso</h4><p style="font-size:1.3rem; color:#3b82f6;">${progresso}%</p></div>
-            ${profissional ? `<div class="card"><h4>Técnico</h4><p>${profissional.nome}</p></div>` : ''}
-        `;
-        freqDiv.innerHTML = `
-            <div class="card" style="margin-top:12px;">
-                <h3>📝 Minhas Ações</h3>
-                <ul style="list-style:none; padding:0; margin-top:12px;">
-                    ${acoes.map(a => `
-                        <li style="padding:8px 12px; background:${a.realizado ? '#d1fae5' : '#fffbeb'}; margin-bottom:6px; border-radius:6px; border-left:4px solid ${a.realizado ? '#10b981' : '#f59e0b'}; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                            <span>${a.texto} ${a.prazo ? `<span style="font-size:0.65rem; color:#64748b;">(Vence: ${new Date(a.prazo).toLocaleDateString('pt-BR')})</span>` : ''}</span>
-                            <span style="color:${a.realizado ? '#065f46' : '#92400e'};">${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}</span>
-                        </li>
-                    `).join('')}
-                </ul>
-            </div>
-        `;
+        cards.innerHTML = `<div class="card"><h4>Nome</h4><p>${jovem['NOME']||'-'}</p></div><div class="card"><h4>Medida</h4><p>LA</p></div><div class="card"><h4>Ações Concluídas</h4><p style="font-size:1.3rem; color:#10b981;">${concluidas}/${acoes.length}</p></div><div class="card"><h4>Progresso</h4><p style="font-size:1.3rem; color:#3b82f6;">${progresso}%</p></div>${profissional ? `<div class="card"><h4>Técnico</h4><p>${profissional.nome}</p></div>` : ''}`;
+        freqDiv.innerHTML = `<div class="card" style="margin-top:12px;"><h3>📝 Minhas Ações</h3><ul style="list-style:none; padding:0; margin-top:12px;">${acoes.map(a => `<li style="padding:8px 12px; background:${a.realizado ? '#d1fae5' : '#fffbeb'}; margin-bottom:6px; border-radius:6px; border-left:4px solid ${a.realizado ? '#10b981' : '#f59e0b'}; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;"><span>${a.texto} ${a.prazo ? `<span style="font-size:0.65rem; color:#64748b;">(Vence: ${new Date(a.prazo).toLocaleDateString('pt-BR')})</span>` : ''}</span><span style="color:${a.realizado ? '#065f46' : '#92400e'};">${a.realizado ? '✅ Cumprido' : '⏳ Pendente'}</span></li>`).join('')}</ul></div>`;
     } else {
         const horasTotal = parseFloat(jovem['HORAS'] || 0);
         const hist = jovem.historicoFrequencia || [];
         const saldo = calcularSaldo(jovem);
-        cards.innerHTML = `
-            <div class="card"><h4>Nome</h4><p>${jovem['NOME'] || '-'}</p></div>
-            <div class="card"><h4>Horas a Cumprir</h4><p style="font-size:1.3rem; color:#2c3e66;">${horasTotal}h</p></div>
-            <div class="card"><h4>Horas Cumpridas</h4><p style="font-size:1.3rem; color:#10b981;">${calcularHorasCumpridas(jovem)}h</p></div>
-            <div class="card"><h4>Saldo</h4><p style="font-size:1.3rem; color:#f59e0b;">${saldo}h</p></div>
-        `;
-        freqDiv.innerHTML = `
-            <div class="card" style="margin-top:12px;">
-                <h3>📊 Minhas Frequências</h3>
-                ${hist.length > 0 ? `
-                    <table style="width:100%; margin-top:8px;">
-                        <thead><tr><th>Data</th><th>Horas</th><th>Obs</th></tr></thead>
-                        <tbody>
-                            ${hist.map(h => `
-                                <tr>
-                                    <td>${new Date(h.data).toLocaleDateString('pt-BR')} ${new Date(h.data).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}</td>
-                                    <td>${h.horas}h</td>
-                                    <td>${h.observacao || '-'}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                ` : '<p style="color:#6b7280;">Nenhum registro.</p>'}
-            </div>
-        `;
+        cards.innerHTML = `<div class="card"><h4>Nome</h4><p>${jovem['NOME']||'-'}</p></div><div class="card"><h4>Horas a Cumprir</h4><p style="font-size:1.3rem; color:#2c3e66;">${horasTotal}h</p></div><div class="card"><h4>Horas Cumpridas</h4><p style="font-size:1.3rem; color:#10b981;">${calcularHorasCumpridas(jovem)}h</p></div><div class="card"><h4>Saldo</h4><p style="font-size:1.3rem; color:#f59e0b;">${saldo}h</p></div>`;
+        freqDiv.innerHTML = `<div class="card" style="margin-top:12px;"><h3>📊 Minhas Frequências</h3>${hist.length > 0 ? `<table style="width:100%; margin-top:8px;"><thead><tr><th>Data</th><th>Horas</th><th>Obs</th></tr></thead><tbody>${hist.map(h => `<tr><td>${new Date(h.data).toLocaleDateString('pt-BR')} ${new Date(h.data).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</td><td>${h.horas}h</td><td>${h.observacao||'-'}</td></tr>`).join('')}</tbody></table>` : '<p style="color:#6b7280;">Nenhum registro.</p>'}</div>`;
     }
 }
 
@@ -3059,10 +2028,7 @@ function exportarExcel() {
     const headers = Object.keys(data[0] || {});
     headers.forEach(h => {
         let maxLen = h.length;
-        data.forEach(row => {
-            const val = String(row[h] || '');
-            if (val.length > maxLen) maxLen = val.length;
-        });
+        data.forEach(row => { const val = String(row[h] || ''); if (val.length > maxLen) maxLen = val.length; });
         colWidths.push({ wch: Math.min(Math.max(maxLen + 2, 12), 40) });
     });
     ws['!cols'] = colWidths;
@@ -3070,7 +2036,7 @@ function exportarExcel() {
 }
 
 // ============================================================
-// IMPORTAR PLANILHA – IDÊNTICO AO EXPORTE
+// IMPORTAR PLANILHA – CORRIGIDO E OTIMIZADO
 // ============================================================
 async function importarPlanilha() {
     const input = document.createElement('input');
@@ -3083,133 +2049,186 @@ async function importarPlanilha() {
         statusDiv.style.display = 'block';
         statusDiv.style.background = '#fffbeb';
         statusDiv.style.color = '#92400e';
-        statusDiv.textContent = '⏳ Processando...';
+        statusDiv.textContent = '⏳ Processando planilha...';
         try {
             const data = await file.arrayBuffer();
-            const wb = XLSX.read(data, { type: 'array', cellStyles: false, cellDates: false, cellFormula: false, sheetRows: 1000 });
-            const sheetName = wb.SheetNames[0];
-            const ws = wb.Sheets[sheetName];
-            if (!ws) throw new Error('Planilha vazia.');
-            const rows = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '', header: 'A' });
-            if (!rows || rows.length === 0) throw new Error('Planilha vazia.');
-            let startRow = 0;
-            let foundHeader = false;
-            for (let i = 0; i < Math.min(20, rows.length); i++) {
-                const row = rows[i];
-                const rowValues = Object.values(row).filter(v => v && v.toString().trim() !== '');
-                const hasHeader = rowValues.some(v => {
-                    const str = v.toString().toUpperCase().trim();
-                    return str === 'NOME' || str === 'REFERENCIA' || str === 'REFERÊNCIA';
-                });
-                if (hasHeader) { startRow = i; foundHeader = true; break; }
+            const wb = XLSX.read(data, { type: 'array', cellStyles: false, cellDates: false, cellFormula: false, sheetRows: 2000 });
+            
+            // === IDENTIFICAR A ABA CORRETA ===
+            let sheetName = 'GERAL'; // Nome da aba principal
+            if (!wb.SheetNames.includes(sheetName)) {
+                // Se não encontrar "GERAL", pega a primeira aba
+                sheetName = wb.SheetNames[0];
             }
-            if (!foundHeader) throw new Error('Cabeçalho não encontrado.');
-            const headers = rows[startRow] || {};
-            const dataRows = rows.slice(startRow + 1).filter(row => Object.values(row).some(val => val && val.toString().trim() !== ''));
-            if (dataRows.length === 0) throw new Error('Nenhuma linha de dados.');
-            function findColumnIndex(headerNames) {
-                for (const h of Object.keys(headers)) {
-                    const hVal = String(headers[h] || '').toUpperCase().trim();
-                    for (const name of headerNames) {
-                        const nameUpper = name.toUpperCase().trim();
-                        if (hVal === nameUpper || hVal.includes(nameUpper) || nameUpper.includes(hVal)) return h;
+            const ws = wb.Sheets[sheetName];
+            if (!ws) throw new Error(`Aba "${sheetName}" não encontrada.`);
+            
+            // === CONVERTER PARA JSON ===
+            const rows = XLSX.utils.sheet_to_json(ws, { 
+                raw: true, 
+                defval: '', 
+                header: 1  // Array de arrays para melhor controle
+            });
+            
+            if (!rows || rows.length === 0) throw new Error('Planilha vazia.');
+            
+            // === ENCONTRAR CABEÇALHO ===
+            let headerRowIndex = -1;
+            let headerRow = null;
+            
+            for (let i = 0; i < Math.min(30, rows.length); i++) {
+                const row = rows[i];
+                if (!row || row.length === 0) continue;
+                
+                // Verificar se é a linha de cabeçalho (contém "NOME" e outras colunas chave)
+                const rowStr = row.join(' ').toUpperCase();
+                if (rowStr.includes('NOME') && (rowStr.includes('MEDIDA') || rowStr.includes('NASC') || rowStr.includes('CPF'))) {
+                    headerRowIndex = i;
+                    headerRow = row;
+                    break;
+                }
+            }
+            
+            if (headerRowIndex === -1 || !headerRow) {
+                // Tentar encontrar pelo nome da primeira coluna
+                for (let i = 0; i < Math.min(30, rows.length); i++) {
+                    const row = rows[i];
+                    if (!row || row.length === 0) continue;
+                    const firstCell = String(row[0] || '').toUpperCase().trim();
+                    if (firstCell === 'NOME') {
+                        headerRowIndex = i;
+                        headerRow = row;
+                        break;
                     }
                 }
-                return null;
             }
-            const colMap = {
-                NOME: findColumnIndex(['NOME','NOME COMPLETO']),
-                REFERENCIA: findColumnIndex(['REFERENCIA','REF']),
-                RESPONSAVEL: findColumnIndex(['NOME DO RESPONSÁVEL','RESPONSÁVEL']),
-                REINCIDENCIA: findColumnIndex(['REINCIDÊNCIA','REINCIDENCIA']),
-                MEDIDA: findColumnIndex(['MEDIDA','MSE']),
-                MESES: findColumnIndex(['MESES']),
-                HORAS: findColumnIndex(['HORAS','TOTAL HORAS']),
-                HORAS_CUMPRIDAS: findColumnIndex(['HORAS_CUMPRIDAS']),
-                SALDO: findColumnIndex(['SALDO']),
-                PROTETIVA: findColumnIndex(['PROTETIVA']),
-                NASCIMENTO: findColumnIndex(['NASC.','NASCIMENTO']),
-                NATURALIDADE: findColumnIndex(['NATURALIDADE']),
-                IDADE: findColumnIndex(['IDADE']),
-                GENERO: findColumnIndex(['GÊNERO','GENERO']),
-                COR: findColumnIndex(['COR']),
-                CPF: findColumnIndex(['CPF']),
-                TELEFONE: findColumnIndex(['TELEFONE','TEL']),
-                ENDERECO: findColumnIndex(['ENDEREÇO','ENDERECO']),
-                BAIRRO: findColumnIndex(['BAIRRO']),
-                ESCOLA: findColumnIndex(['ESCOLA']),
-                SERIE: findColumnIndex(['SÉRIE','SERIE']),
-                ESTUDA: findColumnIndex(['ESTUDA?','ESTUDA']),
-                TRABALHA: findColumnIndex(['TRABALHA?','TRABALHA']),
-                FUNCAO: findColumnIndex(['FUNÇÃO','FUNCAO']),
-                USO_SPA: findColumnIndex(['USO DE SPA?']),
-                QUAL_SPA: findColumnIndex(['QUAL?']),
-                NOME_SOCIAL: findColumnIndex(['QUAL NOME SOCIAL?'])
+            
+            if (headerRowIndex === -1 || !headerRow) {
+                throw new Error('Cabeçalho da planilha não encontrado.');
+            }
+            
+            // === MAPEAMENTO DE COLUNAS ===
+            // Mapeia os nomes das colunas para índices
+            const colMap = {};
+            const headerMap = {
+                'REFERENCIA': ['REFERENCIA', 'REFERÊNCIA', 'REF'],
+                'NOME': ['NOME', 'NOME COMPLETO'],
+                'NOME DO RESPONSÁVEL': ['NOME DO RESPONSÁVEL', 'RESPONSÁVEL'],
+                'REINCIDÊNCIA': ['REINCIDÊNCIA', 'REINCIDENCIA'],
+                'MEDIDA': ['MEDIDA', 'MSE', 'MEDIDA SOCIOEDUCATIVA'],
+                'MESES': ['MESES'],
+                'HORAS': ['HORAS', 'TOTAL HORAS', 'HORAS_ATRIBUIDAS'],
+                'PROTETIVA': ['PROTETIVA'],
+                'NASC.': ['NASC.', 'NASCIMENTO', 'DATA NASC'],
+                'MÊS ANIVERSARIO': ['MÊS ANIVERSARIO', 'MÊS ANIVER.'],
+                'NATURALIDADE': ['NATURALIDADE'],
+                'IDADE': ['IDADE'],
+                'GÊNERO': ['GÊNERO', 'GENERO'],
+                'COR': ['COR'],
+                'COMPOSIÇÃO FAMILIAR': ['COMPOSIÇÃO FAMILIAR'],
+                'RENDA': ['RENDA'],
+                'BENEFICIO': ['BENEFICIO', 'BENEFÍCIO'],
+                'PAA': ['PAA'],
+                'ENDEREÇO': ['ENDEREÇO', 'ENDERECO'],
+                'BAIRRO': ['BAIRRO'],
+                'TELEFONE': ['TELEFONE', 'TEL', 'TELEFONE1'],
+                'CRAS': ['CRAS'],
+                'UBS': ['UBS'],
+                'CPF': ['CPF'],
+                'ESTUDA?': ['ESTUDA?', 'ESTUDA'],
+                'SÉRIE': ['SÉRIE', 'SERIE'],
+                'ESCOLA': ['ESCOLA'],
+                'TRABALHA?': ['TRABALHA?', 'TRABALHA'],
+                'FUNÇÃO': ['FUNÇÃO', 'FUNCAO'],
+                'VINCULO': ['VINCULO', 'VÍNCULO'],
+                'REDE': ['REDE'],
+                'USO DE SPA?': ['USO DE SPA?', 'USO DE SPA'],
+                'QUAL?': ['QUAL?', 'QUAL'],
+                'PREFERE NOME SOCIAL?': ['PREFERE NOME SOCIAL?'],
+                'QUAL NOME SOCIAL?': ['QUAL NOME SOCIAL?', 'NOME SOCIAL']
             };
-            if (!colMap.NOME) throw new Error('Coluna "NOME" não encontrada.');
-            const camposPessoais = [
-                'REFERENCIA','NOME','NOME DO RESPONSÁVEL','REINCIDÊNCIA','MEDIDA','MESES','PROTETIVA',
-                'NASC.','NATURALIDADE','IDADE','GÊNERO','COR','COMPOSIÇÃO FAMILIAR','RENDA','BENEFICIO',
-                'PAA','ENDEREÇO','BAIRRO','TELEFONE','CRAS','UBS','CPF','ESTUDA?','SÉRIE','ESCOLA',
-                'TRABALHA?','FUNÇÃO','VINCULO','REDE','USO DE SPA?','QUAL?','PREFERE NOME SOCIAL?',
-                'QUAL NOME SOCIAL?'
-            ];
-            const campoParaColuna = {
-                'REFERENCIA': colMap.REFERENCIA,
-                'NOME': colMap.NOME,
-                'NOME DO RESPONSÁVEL': colMap.RESPONSAVEL,
-                'REINCIDÊNCIA': colMap.REINCIDENCIA,
-                'MEDIDA': colMap.MEDIDA,
-                'MESES': colMap.MESES,
-                'PROTETIVA': colMap.PROTETIVA,
-                'NASC.': colMap.NASCIMENTO,
-                'NATURALIDADE': colMap.NATURALIDADE,
-                'IDADE': colMap.IDADE,
-                'GÊNERO': colMap.GENERO,
-                'COR': colMap.COR,
-                'CPF': colMap.CPF,
-                'TELEFONE': colMap.TELEFONE,
-                'ENDEREÇO': colMap.ENDERECO,
-                'BAIRRO': colMap.BAIRRO,
-                'ESCOLA': colMap.ESCOLA,
-                'SÉRIE': colMap.SERIE,
-                'ESTUDA?': colMap.ESTUDA,
-                'TRABALHA?': colMap.TRABALHA,
-                'FUNÇÃO': colMap.FUNCAO,
-                'VINCULO': colMap.FUNCAO,
-                'REDE': colMap.FUNCAO,
-                'USO DE SPA?': colMap.USO_SPA,
-                'QUAL?': colMap.QUAL_SPA,
-                'PREFERE NOME SOCIAL?': colMap.NOME_SOCIAL,
-                'QUAL NOME SOCIAL?': colMap.NOME_SOCIAL
-            };
-            let importados = 0, atualizados = 0, ignorados = 0, erros = 0;
-            statusDiv.textContent = `⏳ Processando ${dataRows.length} linhas...`;
+            
+            for (const [campo, possiveisNomes] of Object.entries(headerMap)) {
+                for (let i = 0; i < headerRow.length; i++) {
+                    const cell = String(headerRow[i] || '').toUpperCase().trim();
+                    for (const nome of possiveisNomes) {
+                        if (cell === nome.toUpperCase() || cell.includes(nome.toUpperCase())) {
+                            colMap[campo] = i;
+                            break;
+                        }
+                    }
+                    if (colMap[campo] !== undefined) break;
+                }
+            }
+            
+            // Verificar se encontrou a coluna NOME
+            if (colMap['NOME'] === undefined) {
+                throw new Error('Coluna "NOME" não encontrada. Verifique o cabeçalho da planilha.');
+            }
+            
+            console.log('✅ Mapeamento de colunas:', colMap);
+            
+            // === EXTRAIR DADOS ===
+            const dataRows = [];
+            for (let i = headerRowIndex + 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || row.length === 0) continue;
+                
+                // Verificar se a linha tem algum dado relevante
+                const hasData = row.some(cell => cell && String(cell).trim() !== '');
+                if (!hasData) continue;
+                
+                // Verificar se é uma linha de legenda ou título
+                const firstCell = String(row[0] || '').toUpperCase().trim();
+                const palavrasIgnorar = ['NOVOS ADOLESCENTES', 'REGULAR', 'IRREGULAR', 'EM DESCUMPRIMENTO', 
+                                        'CÓDIGOS FAMILIARES', 'PACTUAÇÃO', 'MEDIDA FINALIZADA', 'LEGENDA',
+                                        'TOTAL', 'NOME', 'REFERENCIA', 'SITUAÇÃO', 'STATUS', 'TER', 'QUIN', 'SÁB'];
+                let ignorar = false;
+                for (const palavra of palavrasIgnorar) {
+                    if (firstCell.includes(palavra)) {
+                        ignorar = true;
+                        break;
+                    }
+                }
+                if (ignorar) continue;
+                
+                dataRows.push(row);
+            }
+            
+            if (dataRows.length === 0) throw new Error('Nenhuma linha de dados encontrada.');
+            
+            console.log(`📊 Encontrados ${dataRows.length} jovens para importar.`);
+            
+            // === PROCESSAR DADOS ===
+            let importados = 0, atualizados = 0, erros = 0;
+            statusDiv.textContent = `⏳ Importando ${dataRows.length} jovens...`;
+            
             for (let rowIndex = 0; rowIndex < dataRows.length; rowIndex++) {
                 const row = dataRows[rowIndex];
                 try {
-                    let nome = '';
-                    if (colMap.NOME && row[colMap.NOME]) nome = String(row[colMap.NOME]).trim();
-                    if (!nome) { if (row['A']) nome = String(row['A']).trim(); if (!nome && row['B']) nome = String(row['B']).trim(); }
-                    if (!nome) { ignorados++; continue; }
-                    const nomeUpper = nome.toUpperCase().trim();
-                    const palavrasIgnorar = [
-                        'NOVOS ADOLESCENTES','REGULAR','IRREGULAR','EM DESCUMPRIMENTO',
-                        'CÓDIGOS FAMILIARES','PACTUAÇÃO','MEDIDA FINALIZADA','LEGENDA',
-                        'TOTAL','NOME','REFERENCIA','SITUAÇÃO','STATUS'
-                    ];
-                    let ignorar = false;
-                    for (const palavra of palavrasIgnorar) {
-                        if (nomeUpper.includes(palavra)) { ignorar = true; break; }
+                    if (rowIndex % 10 === 0) {
+                        statusDiv.textContent = `⏳ Importando ${rowIndex + 1}/${dataRows.length}...`;
+                        await new Promise(r => setTimeout(r, 10));
                     }
-                    if (ignorar) { ignorados++; continue; }
+                    
+                    // Extrair nome
+                    let nome = '';
+                    if (colMap['NOME'] !== undefined && row[colMap['NOME']]) {
+                        nome = String(row[colMap['NOME']]).trim();
+                    }
+                    if (!nome && colMap['REFERENCIA'] !== undefined && row[colMap['REFERENCIA']]) {
+                        nome = String(row[colMap['REFERENCIA']]).trim();
+                    }
+                    if (!nome) continue;
+                    
+                    // Buscar jovem existente por CPF ou nome
                     let jovemExistente = null;
                     let cpfPlanilha = '';
-                    if (colMap.CPF && row[colMap.CPF]) {
-                        cpfPlanilha = String(row[colMap.CPF]).replace(/\D/g, '');
-                    }
-                    if (cpfPlanilha && cpfPlanilha.length >= 11) {
-                        jovemExistente = estado.jovens.find(j => (j['CPF'] || '').replace(/\D/g, '') === cpfPlanilha);
+                    if (colMap['CPF'] !== undefined && row[colMap['CPF']]) {
+                        cpfPlanilha = String(row[colMap['CPF']]).replace(/\D/g, '');
+                        if (cpfPlanilha && cpfPlanilha.length >= 11) {
+                            jovemExistente = estado.jovens.find(j => (j['CPF'] || '').replace(/\D/g, '') === cpfPlanilha);
+                        }
                     }
                     if (!jovemExistente) {
                         const nomeBusca = nome.toUpperCase().trim();
@@ -3218,90 +2237,115 @@ async function importarPlanilha() {
                             return jNome === nomeBusca || jNome.includes(nomeBusca) || nomeBusca.includes(jNome);
                         });
                     }
-                    const dadosJovem = {};
-                    for (const [campo, coluna] of Object.entries(campoParaColuna)) {
-                        if (coluna && row[coluna] !== undefined && row[coluna] !== '') {
-                            let valor = String(row[coluna]).trim();
-                            if (campo === 'GÊNERO') {
-                                if (valor.toUpperCase().includes('MASC')) valor = 'M';
-                                else if (valor.toUpperCase().includes('FEM')) valor = 'F';
-                                else if (valor.toUpperCase().includes('NÃO BINÁRIO') || valor.toUpperCase().includes('NB')) valor = 'NB';
-                            }
-                            if (campo === 'IDADE' && valor) valor = parseInt(valor) || 0;
-                            if (campo === 'NASC.') {
-                                const dataConvertida = parseDataBrasil(valor);
-                                if (dataConvertida) valor = dataConvertida;
-                            }
-                            dadosJovem[campo] = valor;
+                    
+                    // Construir objeto do jovem
+                    const dadosJovem = {
+                        'NOME': nome,
+                        'REFERENCIA': colMap['REFERENCIA'] !== undefined ? String(row[colMap['REFERENCIA']] || '').trim() : '',
+                        'NOME DO RESPONSÁVEL': colMap['NOME DO RESPONSÁVEL'] !== undefined ? String(row[colMap['NOME DO RESPONSÁVEL']] || '').trim() : '',
+                        'REINCIDÊNCIA': colMap['REINCIDÊNCIA'] !== undefined ? String(row[colMap['REINCIDÊNCIA']] || '').trim() : '',
+                        'MEDIDA': colMap['MEDIDA'] !== undefined ? String(row[colMap['MEDIDA']] || '').trim() : '',
+                        'MESES': colMap['MESES'] !== undefined ? String(row[colMap['MESES']] || '').trim() : '',
+                        'HORAS': colMap['HORAS'] !== undefined ? parseNum(row[colMap['HORAS']]) : 0,
+                        'PROTETIVA': colMap['PROTETIVA'] !== undefined ? String(row[colMap['PROTETIVA']] || '').trim() : '',
+                        'NASC.': colMap['NASC.'] !== undefined ? parseDataBrasil(row[colMap['NASC.']]) : '',
+                        'NATURALIDADE': colMap['NATURALIDADE'] !== undefined ? String(row[colMap['NATURALIDADE']] || '').trim() : '',
+                        'IDADE': colMap['IDADE'] !== undefined ? parseInt(row[colMap['IDADE']]) || 0 : 0,
+                        'GÊNERO': colMap['GÊNERO'] !== undefined ? String(row[colMap['GÊNERO']] || '').trim() : '',
+                        'COR': colMap['COR'] !== undefined ? String(row[colMap['COR']] || '').trim() : '',
+                        'COMPOSIÇÃO FAMILIAR': colMap['COMPOSIÇÃO FAMILIAR'] !== undefined ? String(row[colMap['COMPOSIÇÃO FAMILIAR']] || '').trim() : '',
+                        'RENDA': colMap['RENDA'] !== undefined ? String(row[colMap['RENDA']] || '').trim() : '',
+                        'BENEFICIO': colMap['BENEFICIO'] !== undefined ? String(row[colMap['BENEFICIO']] || '').trim() : '',
+                        'PAA': colMap['PAA'] !== undefined ? String(row[colMap['PAA']] || '').trim() : '',
+                        'ENDEREÇO': colMap['ENDEREÇO'] !== undefined ? String(row[colMap['ENDEREÇO']] || '').trim() : '',
+                        'BAIRRO': colMap['BAIRRO'] !== undefined ? String(row[colMap['BAIRRO']] || '').trim() : '',
+                        'TELEFONE': colMap['TELEFONE'] !== undefined ? String(row[colMap['TELEFONE']] || '').trim() : '',
+                        'CRAS': colMap['CRAS'] !== undefined ? String(row[colMap['CRAS']] || '').trim() : '',
+                        'UBS': colMap['UBS'] !== undefined ? String(row[colMap['UBS']] || '').trim() : '',
+                        'CPF': colMap['CPF'] !== undefined ? String(row[colMap['CPF']] || '').trim() : '',
+                        'ESTUDA?': colMap['ESTUDA?'] !== undefined ? String(row[colMap['ESTUDA?']] || '').trim() : '',
+                        'SÉRIE': colMap['SÉRIE'] !== undefined ? String(row[colMap['SÉRIE']] || '').trim() : '',
+                        'ESCOLA': colMap['ESCOLA'] !== undefined ? String(row[colMap['ESCOLA']] || '').trim() : '',
+                        'TRABALHA?': colMap['TRABALHA?'] !== undefined ? String(row[colMap['TRABALHA?']] || '').trim() : '',
+                        'FUNÇÃO': colMap['FUNÇÃO'] !== undefined ? String(row[colMap['FUNÇÃO']] || '').trim() : '',
+                        'VINCULO': colMap['VINCULO'] !== undefined ? String(row[colMap['VINCULO']] || '').trim() : '',
+                        'REDE': colMap['REDE'] !== undefined ? String(row[colMap['REDE']] || '').trim() : '',
+                        'USO DE SPA?': colMap['USO DE SPA?'] !== undefined ? String(row[colMap['USO DE SPA?']] || '').trim() : '',
+                        'QUAL?': colMap['QUAL?'] !== undefined ? String(row[colMap['QUAL?']] || '').trim() : '',
+                        'PREFERE NOME SOCIAL?': colMap['PREFERE NOME SOCIAL?'] !== undefined ? String(row[colMap['PREFERE NOME SOCIAL?']] || '').trim() : '',
+                        'QUAL NOME SOCIAL?': colMap['QUAL NOME SOCIAL?'] !== undefined ? String(row[colMap['QUAL NOME SOCIAL?']] || '').trim() : '',
+                    };
+                    
+                    // Normalizar gênero
+                    if (dadosJovem['GÊNERO']) {
+                        const g = dadosJovem['GÊNERO'].toUpperCase();
+                        if (g.includes('MASC')) dadosJovem['GÊNERO'] = 'M';
+                        else if (g.includes('FEM')) dadosJovem['GÊNERO'] = 'F';
+                        else if (g.includes('NB') || g.includes('NÃO BINÁRIO')) dadosJovem['GÊNERO'] = 'NB';
+                    }
+                    
+                    // Se tem data de nascimento, calcular mês aniversário
+                    if (dadosJovem['NASC.']) {
+                        const dataNasc = new Date(dadosJovem['NASC.']);
+                        if (!isNaN(dataNasc.getTime())) {
+                            const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                            dadosJovem['MÊS ANIVERSARIO'] = meses[dataNasc.getMonth()];
                         }
                     }
-                    dadosJovem['NOME'] = nome;
-                    if (jovemExistente) {
-                        const jovemId = jovemExistente.id;
-                        const historicoFrequencia = jovemExistente.historicoFrequencia || [];
-                        const observacoes = jovemExistente.observacoes || [];
-                        const documentos = jovemExistente.documentos || [];
-                        const acoesLA = jovemExistente.acoesLA || [];
-                        const profissionalLA = jovemExistente.profissionalLA || '';
-                        const jovemAtualizado = {
-                            id: jovemId,
-                            profissionalLA: profissionalLA,
-                            historicoFrequencia: historicoFrequencia,
-                            observacoes: observacoes,
-                            documentos: documentos,
-                            acoesLA: acoesLA,
-                            avaliacoes: jovemExistente.avaliacoes || [],
-                            status: jovemExistente.status || 'REGULAR',
-                            'HORAS': jovemExistente['HORAS'] || 0,
-                            'HORAS_CUMPRIDAS': jovemExistente['HORAS_CUMPRIDAS'] || 0,
-                            'SALDO': jovemExistente['SALDO'] || 0,
-                            'MÊS ANIVERSARIO': jovemExistente['MÊS ANIVERSARIO'] || ''
+                    
+                    // Se tem status na planilha, usar
+                    let status = 'REGULAR';
+                    if (colMap['STATUS'] !== undefined && row[colMap['STATUS']]) {
+                        const statusRaw = String(row[colMap['STATUS']]).toUpperCase().trim();
+                        const statusMap = {
+                            'REGULAR': 'REGULAR',
+                            'IRREGULAR': 'IRREGULAR',
+                            'EM DESCUMPRIMENTO': 'EM DESCUMPRIMENTO',
+                            'SUSPENSO': 'SUSPENSO',
+                            'MEDIDA FINALIZADA': 'MEDIDA FINALIZADA',
+                            'LIBERADO': 'LIBERADO'
                         };
+                        for (const [key, value] of Object.entries(statusMap)) {
+                            if (statusRaw.includes(key) || key.includes(statusRaw)) {
+                                status = value;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Salvar ou atualizar
+                    if (jovemExistente) {
+                        // Atualizar dados mantendo histórico
+                        const jovemAtualizado = { ...jovemExistente };
                         for (const [key, value] of Object.entries(dadosJovem)) {
-                            if (camposPessoais.includes(key)) {
+                            if (value !== undefined && value !== '') {
                                 jovemAtualizado[key] = value;
                             }
                         }
-                        if (dadosJovem['NASC.'] && jovemAtualizado['NASC.']) {
-                            const dataNasc = new Date(jovemAtualizado['NASC.']);
-                            if (!isNaN(dataNasc.getTime())) {
-                                const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                                jovemAtualizado['MÊS ANIVERSARIO'] = meses[dataNasc.getMonth()];
-                            }
-                        }
-                        await upstash('SET', `jovem:${jovemId}`, JSON.stringify(jovemAtualizado));
-                        const index = estado.jovens.findIndex(j => j.id === jovemId);
+                        jovemAtualizado.status = status;
+                        await upstash('SET', `jovem:${jovemExistente.id}`, JSON.stringify(jovemAtualizado));
+                        const index = estado.jovens.findIndex(j => j.id === jovemExistente.id);
                         if (index !== -1) estado.jovens[index] = jovemAtualizado;
                         atualizados++;
                     } else {
+                        // Criar novo jovem
                         const novoId = 'j_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
                         const novoJovem = {
                             id: novoId,
-                            status: 'REGULAR',
+                            status: status,
                             historicoFrequencia: [],
                             observacoes: [],
                             documentos: [],
                             acoesLA: [],
                             avaliacoes: [],
-                            'HORAS': 0,
+                            'HORAS': dadosJovem['HORAS'] || 0,
                             'HORAS_CUMPRIDAS': 0,
                             'SALDO': 0,
-                            'MÊS ANIVERSARIO': ''
+                            ...dadosJovem
                         };
-                        for (const [key, value] of Object.entries(dadosJovem)) {
-                            if (camposPessoais.includes(key)) {
-                                novoJovem[key] = value;
-                            }
-                        }
-                        if (novoJovem['NASC.']) {
-                            const dataNasc = new Date(novoJovem['NASC.']);
-                            if (!isNaN(dataNasc.getTime())) {
-                                const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                                novoJovem['MÊS ANIVERSARIO'] = meses[dataNasc.getMonth()];
-                            }
-                        }
+                        // Garantir que todos os campos existam
                         for (const [key] of CAMPOS) {
-                            if (!novoJovem[key]) novoJovem[key] = '';
+                            if (novoJovem[key] === undefined) novoJovem[key] = '';
                         }
                         await upstash('SET', `jovem:${novoId}`, JSON.stringify(novoJovem));
                         await upstash('SADD', 'jovens:all', novoId);
@@ -3310,32 +2354,38 @@ async function importarPlanilha() {
                     }
                 } catch (rowError) {
                     erros++;
-                    console.error(rowError);
-                }
-                if (rowIndex % 10 === 0) {
-                    statusDiv.textContent = `⏳ Processando ${rowIndex + 1}/${dataRows.length}...`;
-                    await new Promise(r => setTimeout(r, 10));
+                    console.error('Erro na linha:', rowIndex, rowError);
                 }
             }
+            
+            // === FINALIZAR ===
             await carregarTodosDados();
+            
             let mensagem = `✅ Importação concluída!`;
-            if (importados > 0) mensagem += ` ${importados} novos.`;
-            if (atualizados > 0) mensagem += ` ${atualizados} atualizados.`;
-            if (ignorados > 0) mensagem += ` ${ignorados} ignorados.`;
+            if (importados > 0) mensagem += ` ${importados} novos jovens importados.`;
+            if (atualizados > 0) mensagem += ` ${atualizados} jovens atualizados.`;
             if (erros > 0) mensagem += ` ⚠️ ${erros} erros.`;
+            mensagem += ` Total de jovens: ${estado.jovens.length}`;
+            
             statusDiv.style.background = '#d1fae5';
             statusDiv.style.color = '#065f46';
             statusDiv.textContent = mensagem;
+            
+            // Atualizar interface
             carregarLista();
             renderizarDashboard();
             renderizarAcompanhamento();
             popularSelectAcompInd();
+            renderizarRelatorios();
+            
             alert(mensagem);
+            
         } catch (err) {
             statusDiv.style.background = '#fee2e2';
             statusDiv.style.color = '#991b1b';
             statusDiv.textContent = '❌ Erro: ' + err.message;
-            alert('Erro: ' + err.message);
+            alert('Erro na importação: ' + err.message);
+            console.error('Erro detalhado:', err);
         }
     };
     input.click();
@@ -3350,11 +2400,7 @@ function iniciarPolling() {
     if (pollingInterval) clearInterval(pollingInterval);
     pollingInterval = setInterval(async () => {
         if (estado.usuarioAtual && estado.usuarioAtual.nivel !== 'jovem') {
-            try {
-                await carregarTodosDados();
-            } catch (e) {
-                console.error('Polling error:', e);
-            }
+            try { await carregarTodosDados(); } catch (e) { console.error('Polling error:', e); }
         }
     }, 60000);
 }
@@ -3365,19 +2411,10 @@ function iniciarPolling() {
 document.addEventListener('DOMContentLoaded', function() {
     // Eventos de login/cadastro
     document.getElementById('loginBtn').addEventListener('click', fazerLogin);
-    document.getElementById('loginSenha').addEventListener('keypress', e => {
-        if (e.key === 'Enter') fazerLogin();
-    });
+    document.getElementById('loginSenha').addEventListener('keypress', e => { if (e.key === 'Enter') fazerLogin(); });
     document.getElementById('logoutBtn').addEventListener('click', deslogarSistema);
-    document.getElementById('mostrarCadastroBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('telaLogin').style.display = 'none';
-        document.getElementById('telaCadastro').style.display = 'flex';
-    });
-    document.getElementById('voltarLoginBtn').addEventListener('click', () => {
-        document.getElementById('telaCadastro').style.display = 'none';
-        document.getElementById('telaLogin').style.display = 'flex';
-    });
+    document.getElementById('mostrarCadastroBtn').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('telaLogin').style.display = 'none'; document.getElementById('telaCadastro').style.display = 'flex'; });
+    document.getElementById('voltarLoginBtn').addEventListener('click', () => { document.getElementById('telaCadastro').style.display = 'none'; document.getElementById('telaLogin').style.display = 'flex'; });
     document.getElementById('cadastrarBtn').addEventListener('click', async () => {
         const nome = document.getElementById('cadastroNome').value.trim();
         const email = document.getElementById('cadastroEmail').value.trim();
@@ -3393,13 +2430,8 @@ document.addEventListener('DOMContentLoaded', function() {
             await upstash('SADD', 'users:all', user.id);
             document.getElementById('cadastroSucesso').style.display = 'block';
             document.getElementById('cadastroSucesso').textContent = 'Cadastro enviado! Aguarde aprovação.';
-            ['cadastroNome','cadastroEmail','cadastroSenha','cadastroSenhaConfirm'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-        } catch (err) {
-            document.getElementById('cadastroErro').textContent = 'Erro: ' + err.message;
-        }
+            ['cadastroNome','cadastroEmail','cadastroSenha','cadastroSenhaConfirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        } catch (err) { document.getElementById('cadastroErro').textContent = 'Erro: ' + err.message; }
     });
     
     // Outros eventos
@@ -3416,17 +2448,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btnNovoJovemHeader').addEventListener('click', () => navigateTo('pageCadastro'));
     document.getElementById('btnRegistrarPontoHeader').addEventListener('click', () => navigateTo('pageLista'));
     
-    document.querySelectorAll('#filtrosFrequencia select, #filtrosFrequencia input').forEach(el => {
-        el?.addEventListener('change', carregarLista);
-        el?.addEventListener('input', carregarLista);
-    });
-    document.getElementById('buscaFrequencia')?.addEventListener('input', function() {
-        const filtroNome = document.getElementById('filtroNome');
-        if (filtroNome) {
-            filtroNome.value = this.value;
-            carregarLista();
-        }
-    });
+    document.querySelectorAll('#filtrosFrequencia select, #filtrosFrequencia input').forEach(el => { el?.addEventListener('change', carregarLista); el?.addEventListener('input', carregarLista); });
+    document.getElementById('buscaFrequencia')?.addEventListener('input', function() { const filtroNome = document.getElementById('filtroNome'); if (filtroNome) { filtroNome.value = this.value; carregarLista(); } });
     
     renderizarCamposFormulario();
     const emailSalvo = localStorage.getItem('usuarioLogado');
@@ -3435,9 +2458,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Fechar modais com clique no overlay
     document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.style.display = 'none';
-        });
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
     });
 });
 
