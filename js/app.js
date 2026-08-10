@@ -1,7 +1,6 @@
 // ============================================================
 // SISTEMA DE CONTROLE DE MEDIDAS SOCIOEDUCATIVAS v3.0
 // BACKEND: UPSTASH REDIS REST API
-// JS COMPLETO – CORRIGIDO PARA IMPORTAÇÃO PERFEITA
 // ============================================================
 
 // ============================================================
@@ -141,13 +140,13 @@ function calcularHorasCumpridas(jovem) {
 function parseDataBrasil(valor) {
     if (!valor) return '';
     
+    let strValor = String(valor).trim();
+    
     // Se já é uma data válida no formato ISO
     let data = new Date(valor);
     if (!isNaN(data.getTime()) && valor.toString().includes('-')) {
         return data.toISOString().split('T')[0];
     }
-    
-    let strValor = String(valor).trim();
     
     // Formato: DD/MM/AAAA ou DD/MM/AA
     let match = strValor.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
@@ -184,7 +183,6 @@ function parseDataBrasil(valor) {
     data = new Date(strValor);
     if (!isNaN(data.getTime())) return data.toISOString().split('T')[0];
     
-    console.log(`⚠️ Não foi possível converter a data: "${strValor}"`);
     return '';
 }
 
@@ -1984,7 +1982,7 @@ function renderizarDashboardJovem() {
 }
 
 // ============================================================
-// EXPORTAR EXCEL – IDÊNTICO AO IMPORTE
+// EXPORTAR EXCEL
 // ============================================================
 function exportarExcel() {
     const camposPlanilha = [
@@ -2036,7 +2034,7 @@ function exportarExcel() {
 }
 
 // ============================================================
-// IMPORTAR PLANILHA – CORRIGIDO E OTIMIZADO
+// IMPORTAR PLANILHA – FUNÇÃO COMPLETA E CORRIGIDA
 // ============================================================
 async function importarPlanilha() {
     const input = document.createElement('input');
@@ -2044,78 +2042,109 @@ async function importarPlanilha() {
     input.accept = '.xlsx,.xls,.csv';
     input.onchange = async (e) => {
         const file = e.target.files[0];
-        if (!file) return alert('Nenhum arquivo.');
+        if (!file) {
+            alert('Nenhum arquivo selecionado.');
+            return;
+        }
+
         const statusDiv = document.getElementById('statusImportacao');
         statusDiv.style.display = 'block';
         statusDiv.style.background = '#fffbeb';
         statusDiv.style.color = '#92400e';
-        statusDiv.textContent = '⏳ Processando planilha...';
+        statusDiv.textContent = '⏳ Lendo arquivo...';
+
         try {
             const data = await file.arrayBuffer();
-            const wb = XLSX.read(data, { type: 'array', cellStyles: false, cellDates: false, cellFormula: false, sheetRows: 2000 });
-            
-            // === IDENTIFICAR A ABA CORRETA ===
-            let sheetName = 'GERAL'; // Nome da aba principal
-            if (!wb.SheetNames.includes(sheetName)) {
-                // Se não encontrar "GERAL", pega a primeira aba
-                sheetName = wb.SheetNames[0];
-            }
-            const ws = wb.Sheets[sheetName];
-            if (!ws) throw new Error(`Aba "${sheetName}" não encontrada.`);
-            
-            // === CONVERTER PARA JSON ===
-            const rows = XLSX.utils.sheet_to_json(ws, { 
-                raw: true, 
-                defval: '', 
-                header: 1  // Array de arrays para melhor controle
+            const wb = XLSX.read(data, {
+                type: 'array',
+                cellDates: false,
+                cellFormula: false
             });
-            
-            if (!rows || rows.length === 0) throw new Error('Planilha vazia.');
-            
-            // === ENCONTRAR CABEÇALHO ===
-            let headerRowIndex = -1;
+
+            // === IDENTIFICAR A ABA CORRETA ===
+            let sheetName = 'GERAL';
+            if (!wb.SheetNames.includes(sheetName)) {
+                // Se não encontrar "GERAL", pega a primeira aba com dados
+                for (const name of wb.SheetNames) {
+                    const ws = wb.Sheets[name];
+                    const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                    if (json && json.length > 0) {
+                        const firstRow = json[0] || [];
+                        const hasData = firstRow.some(cell => String(cell || '').trim() !== '');
+                        if (hasData) {
+                            sheetName = name;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const ws = wb.Sheets[sheetName];
+            if (!ws) {
+                throw new Error(`Aba "${sheetName}" não encontrada.`);
+            }
+
+            // === CONVERTER PARA JSON (array de arrays) ===
+            const rows = XLSX.utils.sheet_to_json(ws, {
+                header: 1,
+                defval: '',
+                raw: true
+            });
+
+            if (!rows || rows.length === 0) {
+                throw new Error('Planilha vazia.');
+            }
+
+            // === ENCONTRAR O CABEÇALHO ===
+            let headerIndex = -1;
             let headerRow = null;
-            
+
             for (let i = 0; i < Math.min(30, rows.length); i++) {
                 const row = rows[i];
                 if (!row || row.length === 0) continue;
+
+                const rowText = row.map(c => String(c || '').toUpperCase().trim()).join(' ');
                 
-                // Verificar se é a linha de cabeçalho (contém "NOME" e outras colunas chave)
-                const rowStr = row.join(' ').toUpperCase();
-                if (rowStr.includes('NOME') && (rowStr.includes('MEDIDA') || rowStr.includes('NASC') || rowStr.includes('CPF'))) {
-                    headerRowIndex = i;
+                // Verificar se é a linha de cabeçalho
+                const hasNome = rowText.includes('NOME');
+                const hasReferencia = rowText.includes('REFERENCIA') || rowText.includes('REFERÊNCIA');
+                const hasMedida = rowText.includes('MEDIDA');
+                const hasNasc = rowText.includes('NASC');
+                const hasCPF = rowText.includes('CPF');
+
+                if (hasNome && (hasReferencia || hasMedida || hasNasc || hasCPF)) {
+                    headerIndex = i;
                     headerRow = row;
                     break;
                 }
             }
-            
-            if (headerRowIndex === -1 || !headerRow) {
-                // Tentar encontrar pelo nome da primeira coluna
+
+            // Se não encontrou, tenta pela primeira célula
+            if (headerIndex === -1) {
                 for (let i = 0; i < Math.min(30, rows.length); i++) {
                     const row = rows[i];
                     if (!row || row.length === 0) continue;
                     const firstCell = String(row[0] || '').toUpperCase().trim();
-                    if (firstCell === 'NOME') {
-                        headerRowIndex = i;
+                    if (firstCell === 'NOME' || firstCell === 'REFERENCIA' || firstCell === 'REFERÊNCIA') {
+                        headerIndex = i;
                         headerRow = row;
                         break;
                     }
                 }
             }
-            
-            if (headerRowIndex === -1 || !headerRow) {
-                throw new Error('Cabeçalho da planilha não encontrado.');
+
+            if (headerIndex === -1 || !headerRow) {
+                throw new Error('Cabeçalho da planilha não encontrado. Verifique se a primeira linha contém "NOME".');
             }
-            
+
             // === MAPEAMENTO DE COLUNAS ===
-            // Mapeia os nomes das colunas para índices
             const colMap = {};
-            const headerMap = {
+            const mapeamento = {
                 'REFERENCIA': ['REFERENCIA', 'REFERÊNCIA', 'REF'],
                 'NOME': ['NOME', 'NOME COMPLETO'],
                 'NOME DO RESPONSÁVEL': ['NOME DO RESPONSÁVEL', 'RESPONSÁVEL'],
                 'REINCIDÊNCIA': ['REINCIDÊNCIA', 'REINCIDENCIA'],
-                'MEDIDA': ['MEDIDA', 'MSE', 'MEDIDA SOCIOEDUCATIVA'],
+                'MEDIDA': ['MEDIDA', 'MSE', 'TIPO DE MEDIDA'],
                 'MESES': ['MESES'],
                 'HORAS': ['HORAS', 'TOTAL HORAS', 'HORAS_ATRIBUIDAS'],
                 'PROTETIVA': ['PROTETIVA'],
@@ -2131,7 +2160,7 @@ async function importarPlanilha() {
                 'PAA': ['PAA'],
                 'ENDEREÇO': ['ENDEREÇO', 'ENDERECO'],
                 'BAIRRO': ['BAIRRO'],
-                'TELEFONE': ['TELEFONE', 'TEL', 'TELEFONE1'],
+                'TELEFONE': ['TELEFONE', 'TEL'],
                 'CRAS': ['CRAS'],
                 'UBS': ['UBS'],
                 'CPF': ['CPF'],
@@ -2145,13 +2174,14 @@ async function importarPlanilha() {
                 'USO DE SPA?': ['USO DE SPA?', 'USO DE SPA'],
                 'QUAL?': ['QUAL?', 'QUAL'],
                 'PREFERE NOME SOCIAL?': ['PREFERE NOME SOCIAL?'],
-                'QUAL NOME SOCIAL?': ['QUAL NOME SOCIAL?', 'NOME SOCIAL']
+                'QUAL NOME SOCIAL?': ['QUAL NOME SOCIAL?', 'NOME SOCIAL'],
+                'STATUS': ['STATUS', 'SITUAÇÃO', 'SITUACAO']
             };
-            
-            for (const [campo, possiveisNomes] of Object.entries(headerMap)) {
+
+            for (const [campo, nomes] of Object.entries(mapeamento)) {
                 for (let i = 0; i < headerRow.length; i++) {
                     const cell = String(headerRow[i] || '').toUpperCase().trim();
-                    for (const nome of possiveisNomes) {
+                    for (const nome of nomes) {
                         if (cell === nome.toUpperCase() || cell.includes(nome.toUpperCase())) {
                             colMap[campo] = i;
                             break;
@@ -2160,29 +2190,32 @@ async function importarPlanilha() {
                     if (colMap[campo] !== undefined) break;
                 }
             }
-            
-            // Verificar se encontrou a coluna NOME
+
+            // Verificar se encontrou colunas essenciais
             if (colMap['NOME'] === undefined) {
                 throw new Error('Coluna "NOME" não encontrada. Verifique o cabeçalho da planilha.');
             }
-            
+
             console.log('✅ Mapeamento de colunas:', colMap);
-            
+
             // === EXTRAIR DADOS ===
             const dataRows = [];
-            for (let i = headerRowIndex + 1; i < rows.length; i++) {
+            for (let i = headerIndex + 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row || row.length === 0) continue;
-                
-                // Verificar se a linha tem algum dado relevante
-                const hasData = row.some(cell => cell && String(cell).trim() !== '');
+
+                // Verificar se a linha tem dados
+                const hasData = row.some(cell => String(cell || '').trim() !== '');
                 if (!hasData) continue;
-                
-                // Verificar se é uma linha de legenda ou título
+
+                // Verificar se é linha de legenda
                 const firstCell = String(row[0] || '').toUpperCase().trim();
-                const palavrasIgnorar = ['NOVOS ADOLESCENTES', 'REGULAR', 'IRREGULAR', 'EM DESCUMPRIMENTO', 
-                                        'CÓDIGOS FAMILIARES', 'PACTUAÇÃO', 'MEDIDA FINALIZADA', 'LEGENDA',
-                                        'TOTAL', 'NOME', 'REFERENCIA', 'SITUAÇÃO', 'STATUS', 'TER', 'QUIN', 'SÁB'];
+                const palavrasIgnorar = [
+                    'NOVOS ADOLESCENTES', 'REGULAR', 'IRREGULAR', 'EM DESCUMPRIMENTO',
+                    'CÓDIGOS FAMILIARES', 'PACTUAÇÃO', 'MEDIDA FINALIZADA', 'LEGENDA',
+                    'TOTAL', 'NOME', 'REFERENCIA', 'SITUAÇÃO', 'STATUS',
+                    'TER', 'QUIN', 'SÁB', 'PEDIR EXT', 'EXT ANDAMENTO', 'ENCERRADO'
+                ];
                 let ignorar = false;
                 for (const palavra of palavrasIgnorar) {
                     if (firstCell.includes(palavra)) {
@@ -2191,18 +2224,20 @@ async function importarPlanilha() {
                     }
                 }
                 if (ignorar) continue;
-                
+
                 dataRows.push(row);
             }
-            
-            if (dataRows.length === 0) throw new Error('Nenhuma linha de dados encontrada.');
-            
+
+            if (dataRows.length === 0) {
+                throw new Error('Nenhuma linha de dados encontrada.');
+            }
+
             console.log(`📊 Encontrados ${dataRows.length} jovens para importar.`);
-            
+
             // === PROCESSAR DADOS ===
             let importados = 0, atualizados = 0, erros = 0;
             statusDiv.textContent = `⏳ Importando ${dataRows.length} jovens...`;
-            
+
             for (let rowIndex = 0; rowIndex < dataRows.length; rowIndex++) {
                 const row = dataRows[rowIndex];
                 try {
@@ -2210,7 +2245,7 @@ async function importarPlanilha() {
                         statusDiv.textContent = `⏳ Importando ${rowIndex + 1}/${dataRows.length}...`;
                         await new Promise(r => setTimeout(r, 10));
                     }
-                    
+
                     // Extrair nome
                     let nome = '';
                     if (colMap['NOME'] !== undefined && row[colMap['NOME']]) {
@@ -2219,15 +2254,25 @@ async function importarPlanilha() {
                     if (!nome && colMap['REFERENCIA'] !== undefined && row[colMap['REFERENCIA']]) {
                         nome = String(row[colMap['REFERENCIA']]).trim();
                     }
+                    if (!nome) {
+                        // Tentar pegar da primeira coluna
+                        const firstVal = String(row[0] || '').trim();
+                        if (firstVal && !firstVal.match(/^\d+$/) && firstVal.length > 2) {
+                            nome = firstVal;
+                        }
+                    }
                     if (!nome) continue;
-                    
+
                     // Buscar jovem existente por CPF ou nome
                     let jovemExistente = null;
                     let cpfPlanilha = '';
                     if (colMap['CPF'] !== undefined && row[colMap['CPF']]) {
                         cpfPlanilha = String(row[colMap['CPF']]).replace(/\D/g, '');
                         if (cpfPlanilha && cpfPlanilha.length >= 11) {
-                            jovemExistente = estado.jovens.find(j => (j['CPF'] || '').replace(/\D/g, '') === cpfPlanilha);
+                            jovemExistente = estado.jovens.find(j => {
+                                const cpfJovem = (j['CPF'] || '').replace(/\D/g, '');
+                                return cpfJovem === cpfPlanilha;
+                            });
                         }
                     }
                     if (!jovemExistente) {
@@ -2237,7 +2282,7 @@ async function importarPlanilha() {
                             return jNome === nomeBusca || jNome.includes(nomeBusca) || nomeBusca.includes(jNome);
                         });
                     }
-                    
+
                     // Construir objeto do jovem
                     const dadosJovem = {
                         'NOME': nome,
@@ -2275,7 +2320,7 @@ async function importarPlanilha() {
                         'PREFERE NOME SOCIAL?': colMap['PREFERE NOME SOCIAL?'] !== undefined ? String(row[colMap['PREFERE NOME SOCIAL?']] || '').trim() : '',
                         'QUAL NOME SOCIAL?': colMap['QUAL NOME SOCIAL?'] !== undefined ? String(row[colMap['QUAL NOME SOCIAL?']] || '').trim() : '',
                     };
-                    
+
                     // Normalizar gênero
                     if (dadosJovem['GÊNERO']) {
                         const g = dadosJovem['GÊNERO'].toUpperCase();
@@ -2283,8 +2328,8 @@ async function importarPlanilha() {
                         else if (g.includes('FEM')) dadosJovem['GÊNERO'] = 'F';
                         else if (g.includes('NB') || g.includes('NÃO BINÁRIO')) dadosJovem['GÊNERO'] = 'NB';
                     }
-                    
-                    // Se tem data de nascimento, calcular mês aniversário
+
+                    // Calcular mês aniversário se tiver data
                     if (dadosJovem['NASC.']) {
                         const dataNasc = new Date(dadosJovem['NASC.']);
                         if (!isNaN(dataNasc.getTime())) {
@@ -2292,8 +2337,8 @@ async function importarPlanilha() {
                             dadosJovem['MÊS ANIVERSARIO'] = meses[dataNasc.getMonth()];
                         }
                     }
-                    
-                    // Se tem status na planilha, usar
+
+                    // Status
                     let status = 'REGULAR';
                     if (colMap['STATUS'] !== undefined && row[colMap['STATUS']]) {
                         const statusRaw = String(row[colMap['STATUS']]).toUpperCase().trim();
@@ -2312,10 +2357,9 @@ async function importarPlanilha() {
                             }
                         }
                     }
-                    
+
                     // Salvar ou atualizar
                     if (jovemExistente) {
-                        // Atualizar dados mantendo histórico
                         const jovemAtualizado = { ...jovemExistente };
                         for (const [key, value] of Object.entries(dadosJovem)) {
                             if (value !== undefined && value !== '') {
@@ -2328,7 +2372,6 @@ async function importarPlanilha() {
                         if (index !== -1) estado.jovens[index] = jovemAtualizado;
                         atualizados++;
                     } else {
-                        // Criar novo jovem
                         const novoId = 'j_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
                         const novoJovem = {
                             id: novoId,
@@ -2357,29 +2400,29 @@ async function importarPlanilha() {
                     console.error('Erro na linha:', rowIndex, rowError);
                 }
             }
-            
+
             // === FINALIZAR ===
             await carregarTodosDados();
-            
+
             let mensagem = `✅ Importação concluída!`;
             if (importados > 0) mensagem += ` ${importados} novos jovens importados.`;
             if (atualizados > 0) mensagem += ` ${atualizados} jovens atualizados.`;
             if (erros > 0) mensagem += ` ⚠️ ${erros} erros.`;
             mensagem += ` Total de jovens: ${estado.jovens.length}`;
-            
+
             statusDiv.style.background = '#d1fae5';
             statusDiv.style.color = '#065f46';
             statusDiv.textContent = mensagem;
-            
+
             // Atualizar interface
             carregarLista();
             renderizarDashboard();
             renderizarAcompanhamento();
             popularSelectAcompInd();
             renderizarRelatorios();
-            
+
             alert(mensagem);
-            
+
         } catch (err) {
             statusDiv.style.background = '#fee2e2';
             statusDiv.style.color = '#991b1b';
@@ -2433,7 +2476,7 @@ document.addEventListener('DOMContentLoaded', function() {
             ['cadastroNome','cadastroEmail','cadastroSenha','cadastroSenhaConfirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         } catch (err) { document.getElementById('cadastroErro').textContent = 'Erro: ' + err.message; }
     });
-    
+
     // Outros eventos
     document.getElementById('salvarBtn').addEventListener('click', salvarJovem);
     document.getElementById('importarExcelBtn').addEventListener('click', importarPlanilha);
@@ -2447,15 +2490,15 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('userSalvarBtn').addEventListener('click', salvarNovoUsuario);
     document.getElementById('btnNovoJovemHeader').addEventListener('click', () => navigateTo('pageCadastro'));
     document.getElementById('btnRegistrarPontoHeader').addEventListener('click', () => navigateTo('pageLista'));
-    
+
     document.querySelectorAll('#filtrosFrequencia select, #filtrosFrequencia input').forEach(el => { el?.addEventListener('change', carregarLista); el?.addEventListener('input', carregarLista); });
     document.getElementById('buscaFrequencia')?.addEventListener('input', function() { const filtroNome = document.getElementById('filtroNome'); if (filtroNome) { filtroNome.value = this.value; carregarLista(); } });
-    
+
     renderizarCamposFormulario();
     const emailSalvo = localStorage.getItem('usuarioLogado');
     if (emailSalvo) document.getElementById('loginEmail').value = emailSalvo;
     renderizarFiltrosCheckbox();
-    
+
     // Fechar modais com clique no overlay
     document.querySelectorAll('.modal-overlay').forEach(modal => {
         modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
